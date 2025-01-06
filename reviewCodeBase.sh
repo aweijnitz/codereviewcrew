@@ -15,4 +15,4 @@ if [ ! -d "build" ] || [ ! -f "build/src/main.js" ]; then
 fi
 
 # Run the node command with the third argument
-LOG_LEVEL=info node build/src/main.js "$1"
+LOG_LEVEL=info node build/src/main.js "$1" "$2"

@@ -1,6 +1,6 @@
 import {config} from "@dotenvx/dotenvx"; config();
 import process from "process";
-import {clearAllTables, closeDB} from "../db/schema.js";
+import {clearAllTables, closeDB} from "../db/persistence.js";
 import {obliterateAllQueues} from "../taskmanagement/queueManagement.js";
 import getLogger from "./getLogger.js";
 

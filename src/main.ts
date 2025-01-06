@@ -46,6 +46,7 @@ async function cleanUp(owner:string) {
 
 const rootPath = process.argv[2];
 let saveFile = process.argv[3];
+
 if (!rootPath) {
     console.error('Errror: No folder provided!');
     console.error('Usage: node build/src/main.js <rootPath> [report_file.md]');
@@ -55,6 +56,7 @@ if (!rootPath) {
 if(!saveFile) saveFile = 'stdout';
 const folderPathAbsolute = path.normalize(path.resolve(rootPath));
 const orchestratorAgentName = `OrchestratorAgent-${folderPathAbsolute}`;
+
 mountShutdownHooks();
 const startTime = process.hrtime.bigint()
 
@@ -64,6 +66,7 @@ const endTime = process.hrtime.bigint();
 const durationNanos = Number(endTime - startTime);
 const llmStats = await readLLMStats(orchestratorAgentName);
 logger.info(`STATS: Report generation duration: ${formatDuration(durationNanos)}. Total tokens consumed ${llmStats.promptTokens + llmStats.responseTokens}. LLM API time: ${formatDuration(llmStats.totalDurationNanos)}`)
+
 if (saveFile === 'stdout') {
     console.log(finalReport)
 } else {

@@ -1,6 +1,6 @@
 import {config} from "@dotenvx/dotenvx";
 import * as process from "process";
-import {clearAllTables, createReviewTaskTable, deleteReviewTaskTables, persistReviewTask} from "../db/schema.js";
+import {clearAllTables, createReviewTaskTable, deleteReviewTaskTables, persistReviewTask} from "../db/persistence";
 import ReviewTask from "../taskmanagement/ReviewTask.js";
 import {JobState} from "../interfaces.js";
 

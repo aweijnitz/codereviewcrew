@@ -86,7 +86,7 @@ Ensure that the complexity rating is always a whole number within the range of 1
                 format: jsonSchema,
                 options: {
                     temperature: 0.15,
-                    num_ctx: 10*1024, // 10kB context window
+                    num_ctx: 4*1024, // token context window (default is 2048). Too much will choke Ollama on memory
                 },
                 system: this._prompt,
                 prompt: task.code

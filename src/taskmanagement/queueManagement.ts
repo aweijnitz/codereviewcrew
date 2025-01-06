@@ -221,6 +221,3 @@ export async function updateLLMStats(prefix: string, stats: LLMStats): Promise<v
     await redis.hincrby(key, 'responseTokens', stats.responseTokens);
     await redis.hincrby(key, 'totalDurationNanos', stats.totalDurationNanos);
 }
-
-
-

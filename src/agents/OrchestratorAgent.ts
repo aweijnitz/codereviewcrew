@@ -1,7 +1,8 @@
 import path from "path";
 import fs from "fs";
-import {QueueEvents, Job} from "bullmq";
-import {config} from "@dotenvx/dotenvx"; config();
+import {config} from "@dotenvx/dotenvx";
+
+config();
 import {analyzeFolder} from "../tools/staticCodeAnalysis.js";
 import getLogger from "../utils/getLogger.js";
 import toCodeComplexityPrompt from "../utils/toCodeComplexityPrompt.js";
@@ -10,21 +11,12 @@ import isProgrammingLanguage from "../utils/isProgrammingLanguage.js";
 
 import {
     enqueueTaskForComplexityAssessment,
-    enqueueTaskForCodeReview,
-    enqueueTaskForFinalReport,
-    getCreateQueue,
-    COMPLEXITY_SUFFIX,
-    REPORT_SUFFIX,
-    REVIEW_SUFFIX,
-    toQueueName,
-    increaseCompletedJobsCount,
     getTotalJobsCount,
     allJobsCompleted,
     getCompletedJobsCount,
     updateLLMStats, resetJobCounters
 } from "../taskmanagement/queueManagement.js";
-import {JobState, LLMStats} from "../interfaces.js";
-import {createReviewTaskTable, persistReviewTask} from "../db/schema.js";
+import {createReviewTaskTable, persistReviewTask} from "../db/persistence.js";
 import {ReportCreator} from "./ReportCreator.js";
 
 const logger = getLogger('OrchestratorAgent');
@@ -99,72 +91,17 @@ export default class OrchestratorAgent {
      */
     public async run(): Promise<string> {
         logger.info(`Agent ${this._name} is running...`);
-        const complexityQueueEvents = new QueueEvents(toQueueName(this.name, COMPLEXITY_SUFFIX));
-        const codeReviewQueueEvents = new QueueEvents(toQueueName(this.name, REVIEW_SUFFIX));
-        const reportQueueEvents = new QueueEvents(toQueueName(this.name, REPORT_SUFFIX));
-        let finalReport ='';
+        let finalReport = '';
         try {
             if (!this._skipAnalysis) {
                 await resetJobCounters(this.name); // reset state
-
-                // ___ Setup workflow logic
-                // TODO: Move as much of this out as possible to per-job 'completed' event handlers for (slightly) improved throughput. Less readable though?
-                //
-                // 1. Dispatch tasks based on the complexity assessment
-                complexityQueueEvents.on('completed', async ({jobId}) => {
-                    let job: Job<any, any, string> | undefined;
-                    const queueName = toQueueName(this.name, COMPLEXITY_SUFFIX);
-                    const queue = getCreateQueue(queueName);
-                    if (queue)
-                        job = await Job.fromId(queue, jobId);
-                    else
-                        throw new Error('Queue not found! ' + queueName)
-                    let task = ReviewTask.fromJSON(job?.returnvalue.result)
-                    task.state = JobState.COMPLETED_COMPLEXITY_ASSESSMENT;
-                    if (task.complexity.complexity >= 3) {
-                        // 2.0 Review code of files deemed too complex
-                        await enqueueTaskForCodeReview(task);
-                    } else {
-                        // 2.1 Simple files get a pass and get sent to the report without review
-                        await enqueueTaskForFinalReport(task);
-                    }
-                });
-
-                // 3. Add reviewed code to the report queue
-                codeReviewQueueEvents.on('completed', async ({jobId}) => {
-                    let job: Job<any, any, string> | undefined;
-                    const queueName = toQueueName(this.name, REVIEW_SUFFIX);
-                    const queue = getCreateQueue(queueName);
-                    if (queue)
-                        job = await Job.fromId(queue, jobId);
-                    else
-                        throw new Error('Queue not found! ' + queueName)
-                    let task = ReviewTask.fromJSON(job?.returnvalue.result)
-                    task.state = JobState.COMPLETED_CODE_REVIEW;
-                    enqueueTaskForFinalReport(task);
-                });
-
-                // 4. Prep report per task
-                reportQueueEvents.on('completed', async ({jobId}) => {
-                    let job: Job<any, any, string> | undefined;
-                    const queueName = toQueueName(this.name, REPORT_SUFFIX);
-                    const queue = getCreateQueue(queueName);
-                    if (queue)
-                        job = await Job.fromId(queue, jobId);
-                    else
-                        throw new Error('Queue not found! ' + queueName)
-                    let task = ReviewTask.fromJSON(job?.returnvalue.result)
-                    task.state = JobState.COMPLETED;
-                    // TODO: Use another agent to review the outcome of the review here and send it back for re-review if needed.
-                    await increaseCompletedJobsCount(this.name);
-                });
 
                 // STEP 0: Perform static code analysis
                 logger.info("Scanning folder: " + this._folderPathAbsolute);
                 //scc static code analysis. Produces file lists, binned by programming language.
                 const analysisResult = await analyzeFolder(this._folderPathAbsolute);
 
-                // For each language bin, iterate over the files and create review tasks
+                // For each language bin, iterate over the files and create review tasks to be worked on by the agents
                 for (const languageBin of analysisResult) {
                     const index = analysisResult.indexOf(languageBin);
                     logger.debug(`Processing language bin ${index}: ${languageBin.Name}`);
@@ -185,20 +122,20 @@ export default class OrchestratorAgent {
 
                 // At this point, all jobs are enqueued for review. Now we wait for them to complete.
                 logger.info(`All tasks enqueued. Total tasks: ${await getTotalJobsCount(this.name)}`);
-                logger.info(`Waiting for tasks to complete...`);
+                logger.info(`Waiting for tasks to be picked up by the agents...`);
                 const agentName = this.name;
                 while (!(await allJobsCompleted(agentName))) {
                     await new Promise(async resolve => {
                         logger.info(`Waiting for tasks to complete.... Total tasks: ${await getTotalJobsCount(agentName)}. Completed count: ${await getCompletedJobsCount(agentName)}`);
-                        return setTimeout(resolve, 5000)
+                        return setTimeout(resolve, 15000)
                     });
                 }
                 logger.info(`All tasks COMPLETE. Total tasks: ${await getTotalJobsCount(this.name)}. Completed count: ${await getCompletedJobsCount(this.name)}`);
             } // end !skip analysis
-            if(!this._skipReport) {
+            if (!this._skipReport) {
                 // Generate final report
                 logger.info(`${this.name} Generating final report...`)
-                const reporterAgent = new ReportCreator(this.name+'_ReportCreator', this.name );
+                const reporterAgent = new ReportCreator(this.name + '_ReportCreator', this.name);
                 finalReport = await reporterAgent.run();
                 await updateLLMStats(this.name, reporterAgent.llmStats);
             }
@@ -210,5 +147,5 @@ export default class OrchestratorAgent {
 
         logger.info(`${this.name} DONE. Returning final report`)
         return finalReport;
-    }
+    } // end run
 }

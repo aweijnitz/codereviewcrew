@@ -2,11 +2,11 @@ import {config} from "@dotenvx/dotenvx";
 import {GenerateResponse, Ollama} from "ollama";
 import process from "process";
 
-import {getAllCodeReviews, getTaskCountByComplexity, getTopProblematicFilesByComplexity} from "../db/schema.js";
+import {getAllCodeReviews, getTaskCountByComplexity, getTopProblematicFilesByComplexity} from "../db/persistence.js";
 import getLogger from "../utils/getLogger.js";
 import {generateMarkdownForComplexityCounts, generateMarkdownForProblematicFiles} from "../utils/reportHelpers.js";
 import formatDuration from "../utils/formatDuration.js";
-import {AgentStats, LLMStats} from "../interfaces";
+import {AgentStats, LLMStats} from "../interfaces.js";
 
 config();
 const logger = getLogger('ReportCreator');
@@ -95,8 +95,9 @@ Reply in Markdown format.
             const response = await this._ollama.generate({
                 model: this.REPORT_MODEL_NAME,
                 options: {
-                    temperature: 0.25,
-                    num_ctx: 50*1024, // 50kB context window
+                    temperature: 0.2,
+                    top_p: 0.65, // A higher value (e.g., 0.95) will lead to more diverse text, while a lower value (e.g., 0.5) will generate more focused and conservative text.
+                    num_ctx: 131072 // // LLama3.2 maximum. Too much will choke Ollama on memory. Check the ollama server log for warnings
                 },
                 system: ReportCreator._prompt,
                 prompt: fileReviewsPrompt
