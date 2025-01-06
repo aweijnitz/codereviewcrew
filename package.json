@@ -7,7 +7,7 @@
   "target": "es2022",
   "scripts": {
     "test": "jest",
-    "dev": "tsc && node build/index.js | pino-pretty",
+    "dev": "tsc && LOG_LEVEL=debug node build/index.js | pino-pretty",
     "start": "tsc && node build/index.js",
     "clean": "rm -rf ./build",
     "lint": "eslint ./src",

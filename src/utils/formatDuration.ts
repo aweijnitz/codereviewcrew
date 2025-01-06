@@ -1,9 +1,9 @@
 /**
- * Formats a duration in milliseconds to a string in the format `hh:mm:ss`.
- * @param ms
+ * Formats a duration in nano seconds to a string in the format `hh:mm:ss`.
+ * @param nanoSecondsDuration
  */
-export default function formatDuration(ms: number): string {
-    const totalSeconds = Math.floor(ms / 1000);
+export default function formatDuration(nanoSecondsDuration: number): string {
+    const totalSeconds = Math.floor(nanoSecondsDuration / 1e9);
     const hours = Math.floor(totalSeconds / 3600);
     const minutes = Math.floor((totalSeconds % 3600) / 60);
     const seconds = totalSeconds % 60;

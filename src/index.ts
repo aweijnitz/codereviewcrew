@@ -26,7 +26,7 @@ try {
     const result = await promiseWithConcurrencyLimit(reviews, MAX_CONCURRENCY);
     logger.debug(result)
 } catch (error) {
-    logger.error("Failed to analyze folder:", error);
+    logger.error( error, "Failed to analyze folder:", folderPathAbsolute);
 }
 
 /*

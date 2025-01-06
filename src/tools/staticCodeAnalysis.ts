@@ -28,7 +28,7 @@ function stripPwdPathPrefix(data: any[]): any[] {
  */
 export async function analyzeFolder(folderPath: string): Promise<any> {
     try {
-        // See https://github.com/boyter/scc?tab=readme-ov-file#complexity-estimates for more information on the scc command.
+        // See https://github.com/boyter/scc?tab=readme-ov-file#complexity-estimates
         const command = `docker run --rm -v "${folderPath}:/pwd" ghcr.io/lhoupert/scc:master scc --format json --by-file -s complexity /pwd`;
         const { stdout, stderr } = await execAsync(command);
         if (stderr) {

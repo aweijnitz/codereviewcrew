@@ -1,6 +1,8 @@
 import pino from 'pino';
 
-const rootLogger = pino();
+const rootLogger = pino({
+    level: process.env.LOG_LEVEL || 'info'
+});
 const loggers: { [key: string]: pino.Logger } = {};
 
 
