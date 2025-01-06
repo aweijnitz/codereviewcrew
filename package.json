@@ -2,13 +2,13 @@
   "name": "agentic-codereviwecrew",
   "version": "1.0.0",
   "description": "",
-  "main": "build/index.js",
+  "main": "build/main.js",
   "type": "module",
   "target": "es2022",
   "scripts": {
     "test": "jest",
-    "dev": "tsc && LOG_LEVEL=debug node build/index.js | pino-pretty",
-    "start": "tsc && node build/index.js",
+    "dev": "tsc && LOG_LEVEL=debug node build/main.js | pino-pretty",
+    "start": "tsc && node build/main.js",
     "clean": "rm -rf ./build",
     "lint": "eslint ./src",
     "build": "tsc"

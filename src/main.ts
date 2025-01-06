@@ -7,7 +7,7 @@ import promiseWithConcurrencyLimit from "./utils/promiseWithConcurrencyLimit.js"
 import getLogger from "./utils/getLogger.js";
 
 const MAX_CONCURRENCY = 3;
-const logger = getLogger('index');
+const logger = getLogger('main');
 
 const rootPath = './src'
 const folderPathAbsolute = path.normalize(path.resolve(rootPath));
