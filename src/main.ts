@@ -5,9 +5,9 @@ import process from "process";
 import fs from "fs";
 import * as path from "path";
 import {
-    clearLLMStats,
-    drainAndDelete, readLLMStats,
+    drainAndDelete,
 } from "./taskmanagement/queueManagement.js";
+import {clearLLMStats, readLLMStats} from "./taskmanagement/llmStats.js"
 import getLogger from "./utils/getLogger.js";
 import OrchestratorAgent from "./agents/OrchestratorAgent.js";
 import {mountShutdownHooks} from "./utils/gracefulShutdown.js";

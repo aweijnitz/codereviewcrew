@@ -10,16 +10,19 @@ import ReviewTask from "../taskmanagement/ReviewTask.js";
 import isProgrammingLanguage from "../utils/isProgrammingLanguage.js";
 
 import {
-    enqueueTaskForComplexityAssessment,
+    enqueueTaskForComplexityAssessment
+} from "../taskmanagement/queueManagement.js";
+import  { updateLLMStats } from "../taskmanagement/llmStats.js"
+import {
     getTotalJobsCount,
     allJobsCompleted,
     getCompletedJobsCount,
-    updateLLMStats, resetJobCounters
-} from "../taskmanagement/queueManagement.js";
+     resetJobCounters
+} from "../taskmanagement/jobCounters.js";
 import {createReviewTaskTable, persistReviewTask} from "../db/persistence.js";
 import {ReportCreator} from "./ReportCreator.js";
 
-const logger = getLogger('OrchestratorAgent');
+const logger = getLogger('OrchestratorAgent.');
 
 
 interface LanguageBin {

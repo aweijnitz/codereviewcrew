@@ -1,12 +1,13 @@
+import IORedis from "ioredis";
+import * as process from "process";
+import {config} from "@dotenvx/dotenvx";
 import * as crypto from 'crypto';
 import {Job, Queue} from "bullmq";
 import ReviewTask from "./ReviewTask";
 import getLogger from "../utils/getLogger.js";
 import {JobState, LLMStats, ReviewTaskData} from "../interfaces.js";
-import IORedis from "ioredis";
-import * as process from "process";
-import {config} from "@dotenvx/dotenvx";
-import {AgentJobData, AgentWorkerResult} from "../interfaces.js";
+
+import {deleteJobCounters, increaseTotalJobsCount} from "./jobCounters.js";
 
 config();
 const logger = getLogger('queueManagement');
@@ -14,12 +15,11 @@ const logger = getLogger('queueManagement');
 export const COMPLEXITY_SUFFIX = '-complexities';
 export const REVIEW_SUFFIX = '-code_reviews';
 export const REPORT_SUFFIX = '-report'
-const LLM_STATS_KEY = 'llm_stats';
 
 export const activeQueues = new Map<string, Queue>();
 const redisPort = process.env.REDIS_PORT ? parseInt(process.env.REDIS_PORT, 10) : 6379;
+let redisConn : IORedis ;
 
-const redis = new IORedis(redisPort, process.env.REDIS_HOST || 'REDIS_HOST_NOT_SET', {maxRetriesPerRequest: 3});
 
 const jobOptions = {
     attempts: 5,
@@ -37,6 +37,13 @@ const jobOptions = {
     }
 };
 
+
+export async function getRedisConnection() {
+    if(!redisConn)
+        redisConn = new IORedis(redisPort, process.env.REDIS_HOST || 'REDIS_HOST_NOT_SET', {maxRetriesPerRequest: 3});
+
+    return redisConn;
+}
 
 /**
  * Returns unique queueName  based on the owner string and suffix
@@ -85,39 +92,6 @@ export async function drainAndDelete(owner: string, force: boolean = false) {
     await deleteJobCounters(owner);
     logger.info(`All temporary queue data cleared for ${owner}`)
 }
-
-export async function increaseTotalJobsCount(owner: string) {
-    return redis.incr(owner + '-total');
-}
-
-export async function getTotalJobsCount(owner: string) {
-    return redis.get(owner + '-total');
-}
-
-export async function increaseCompletedJobsCount(owner: string) {
-    return redis.incr(owner + '-completed');
-}
-
-export async function getCompletedJobsCount(owner: string) {
-    return redis.get(owner + '-completed');
-}
-
-export async function deleteJobCounters(owner: string) {
-    return redis.del(owner + '-total', owner + '-completed');
-}
-
-export async function resetJobCounters(owner: string) {
-    await redis.set(owner + '-completed', 0);
-    return redis.set(owner + '-total', 0);
-}
-
-export async function allJobsCompleted(owner: string): Promise<boolean> {
-    if (await getTotalJobsCount(owner) === await getCompletedJobsCount(owner))
-        return true;
-    else
-        return false;
-}
-
 
 export async function enqueueTaskForComplexityAssessment(reviewTask: ReviewTask) {
     logger.debug(`Enqueuing task for complexity assessment: ${reviewTask.fileName}`);
@@ -179,6 +153,7 @@ export async function enqueueTaskForFinalReport(reviewTask: ReviewTask) {
  * Used by the process shutdown hook to clear any remaining data.
  */
 export async function obliterateAllQueues() {
+    const redis = await getRedisConnection();
 
     // Assuming you have a way to get all queue names
     const queueNames = await redis.keys('*');
@@ -193,31 +168,3 @@ export async function obliterateAllQueues() {
     await redis.quit();
 }
 
-export async function clearLLMStats(prefix: string): Promise<void> {
-    const key = `${prefix}:${LLM_STATS_KEY}`;
-    await redis.del(key);
-}
-
-export async function readLLMStats(prefix: string): Promise<LLMStats> {
-    const key = `${prefix}:${LLM_STATS_KEY}`;
-    const result = await redis.hgetall(key);
-    if (Object.keys(result).length > 0) {
-        return {
-            promptTokens: parseInt(result.promptTokens || '0', 10),
-            responseTokens: parseInt(result.responseTokens || '0', 10),
-            totalDurationNanos: parseInt(result.totalDurationNanos || '0', 10)
-        };
-    }
-    return {
-        promptTokens: 0,
-        responseTokens: 0,
-        totalDurationNanos: 0
-    } as LLMStats;
-}
-
-export async function updateLLMStats(prefix: string, stats: LLMStats): Promise<void> {
-    const key = `${prefix}:${LLM_STATS_KEY}`;
-    await redis.hincrby(key, 'promptTokens', stats.promptTokens);
-    await redis.hincrby(key, 'responseTokens', stats.responseTokens);
-    await redis.hincrby(key, 'totalDurationNanos', stats.totalDurationNanos);
-}

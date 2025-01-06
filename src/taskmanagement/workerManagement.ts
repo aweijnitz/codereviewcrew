@@ -9,17 +9,19 @@ import OrchestratorAgent from "../agents/OrchestratorAgent.js";
 import {AgentWorkerResult, JobState, ReviewTaskData} from "../interfaces.js";
 import {
     COMPLEXITY_SUFFIX, enqueueTaskForCodeReview, enqueueTaskForFinalReport,
-    getCreateQueue, increaseCompletedJobsCount,
+    getCreateQueue,
     REPORT_SUFFIX,
     REVIEW_SUFFIX,
     toQueueName,
-    updateLLMStats
+
 } from "./queueManagement.js";
+import {updateLLMStats} from "./llmStats.js";
 import CodeComplexityRater from "../agents/CodeComplexityRater.js";
 import ReviewTask from "./ReviewTask.js";
 import CodeReviewer from "../agents/CodeReviewer.js";
 import {persistReviewTask} from "../db/persistence.js";
 import getLogger from "../utils/getLogger.js";
+import {increaseCompletedJobsCount} from "./jobCounters.js";
 
 const logger = getLogger('workerManagement');
 
