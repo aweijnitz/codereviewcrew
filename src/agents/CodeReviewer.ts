@@ -1,6 +1,7 @@
 import OrchestratorAgent from "./OrchestratorAgent";
 import {Ollama} from "ollama";
 import * as console from "console";
+import formatDuration from "../utils/formatDuration.js";
 
 
 export default class CodeReviewer {
@@ -33,18 +34,22 @@ export default class CodeReviewer {
 
     public setCode(fileName: string, code: string): void {
         this._code = code;
-        this._fileName = fileName
+        this._fileName = fileName;
     }
 
     public async run(): Promise<string> {
+        console.log(`Agent ${this._name} running. Analyzing file ${this._fileName}`);
+
         const response = await this._ollama.generate({
             model: this.MODEL_NAME,
+            options: {
+                temperature: 0.1
+            },
             system: this._prompt,
             prompt: this._code
 
         })
-        console.log(`Agent ${this._name} running. Analyzing file ${this._fileName}`);
-        console.log(`Agent ${this._name} done! File: ${this._fileName}. Duration: ${response.total_duration}`);
-        return response.response;
+        console.log(`Agent ${this._name} done! File: ${this._fileName}. Duration: ${formatDuration(response.total_duration)}`);
+        return `# ${this._fileName}\n\n${response.response}`;
     }
 }

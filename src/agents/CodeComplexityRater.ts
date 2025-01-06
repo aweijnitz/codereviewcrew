@@ -44,8 +44,12 @@ export default class CodeComplexityRater {
         if(this._fileName === '') { return 'No file name provided'; }
         const response = await this._ollama.generate({
             model: this.MODEL_NAME,
+            options: {
+                temperature: 0.2
+            },
             system: this._prompt,
-            prompt: this._code
+            prompt: this._code,
+
 
         })
         console.log(`Agent ${this._name} running. Analyzing file ${this._fileName}`);
