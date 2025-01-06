@@ -146,6 +146,8 @@ export function clearAllTables() {
 
 function basicSanitize(input : string) : string {
     // Replace all occurrences of '-', '//', '\', and ' ' with '§'
+    if(!input)
+        return 'UNDFINED';
     return input.replace(/[-/\\\s]/g, '§');
 }
 
@@ -175,7 +177,7 @@ export function persistReviewTask(reviewTask: ReviewTaskData) {
     const transaction = db.transaction(() => {
         const complexityResult = complexityStmt.run(
             reviewTask.complexity.complexity,
-            basicSanitize(reviewTask.complexity.note)
+            reviewTask.complexity.note
         );
         const complexityId = complexityResult.lastInsertRowid;
 

@@ -18,7 +18,12 @@ import {
     COMPLEXITY_SUFFIX,
     REPORT_SUFFIX,
     REVIEW_SUFFIX,
-    toQueueName, increaseCompletedJobsCount, getTotalJobsCount, allJobsCompleted, getCompletedJobsCount
+    toQueueName,
+    increaseCompletedJobsCount,
+    getTotalJobsCount,
+    allJobsCompleted,
+    getCompletedJobsCount,
+    deleteJobCounters
 } from "../taskmanagement/queueManagement.js";
 import {JobState} from "../interfaces.js";
 import {createReviewTaskTable, persistReviewTask} from "../db/schema.js";
@@ -66,6 +71,7 @@ export default class OrchestratorAgent {
      * @param rootFolderPathAbsolute
      */
     constructor(name: string, rootFolderPathAbsolute: string = '') {
+        logger.debug(`Creating new OrchestratorAgent with name: ${name}. Number of agents: ${OrchestratorAgent.takenNames.size} `);
         if (OrchestratorAgent.takenNames.has(name)) {
             throw new Error(`Agent name "${name}" is already taken.`);
         }
@@ -93,9 +99,10 @@ export default class OrchestratorAgent {
         const reportQueueEvents = new QueueEvents(toQueueName(this.name, REPORT_SUFFIX));
 
         try {
+            await deleteJobCounters(this.name); // reset job state
 
             // ___ Setup workflow logic
-            // TODO: Move as much of this out as possible to per-job 'completed' event handlers for greater throughput
+            // TODO: Move as much of this out as possible to per-job 'completed' event handlers for improved throughput
             //
             // 1. Dispatch tasks based on the complexity assessment
             complexityQueueEvents.on('completed', async ({jobId}) => {
@@ -106,7 +113,7 @@ export default class OrchestratorAgent {
                     job = await Job.fromId(queue, jobId);
                 else
                     throw new Error('Queue not found! ' + queueName)
-                let task = ReviewTask.fromJSON(job?.returnvalue.result.task)
+                let task = ReviewTask.fromJSON(job?.returnvalue.result)
                 task.state = JobState.COMPLETED_COMPLEXITY_ASSESSMENT;
                 if (task.complexity.complexity >= 3) {
                     // 2.0 Review code of files deemed too complex
@@ -126,7 +133,7 @@ export default class OrchestratorAgent {
                     job = await Job.fromId(queue, jobId);
                 else
                     throw new Error('Queue not found! ' + queueName)
-                let task = ReviewTask.fromJSON(job?.returnvalue.result.task)
+                let task = ReviewTask.fromJSON(job?.returnvalue.result)
                 task.state = JobState.COMPLETED_CODE_REVIEW;
                 enqueueTaskForFinalReport(task);
             });
@@ -140,10 +147,9 @@ export default class OrchestratorAgent {
                     job = await Job.fromId(queue, jobId);
                 else
                     throw new Error('Queue not found! ' + queueName)
-                let task = ReviewTask.fromJSON(job?.returnvalue.result.task)
+                let task = ReviewTask.fromJSON(job?.returnvalue.result)
                 task.state = JobState.COMPLETED;
                 // TODO: Use another agent to review the outcome of the review here and send it back for re-review if needed.
-                persistReviewTask(task);
                 await increaseCompletedJobsCount(this.name);
             });
 

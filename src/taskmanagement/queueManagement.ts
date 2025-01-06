@@ -1,11 +1,13 @@
 import * as crypto from 'crypto';
-import {Queue } from "bullmq";
+import {Queue} from "bullmq";
 import ReviewTask from "./ReviewTask";
 import getLogger from "../utils/getLogger.js";
 import {JobState} from "../interfaces.js";
 import IORedis from "ioredis";
 import * as process from "process";
-import {config} from "@dotenvx/dotenvx"; config();
+import {config} from "@dotenvx/dotenvx";
+
+config();
 const logger = getLogger('queueManagement');
 
 export const COMPLEXITY_SUFFIX = '-complexities';
@@ -118,6 +120,7 @@ export async function enqueueTaskForComplexityAssessment(reviewTask: ReviewTask)
     }
     const queueName = toQueueName(reviewTask.owner, COMPLEXITY_SUFFIX);
     const queue = getCreateQueue(queueName);
+    reviewTask.state = JobState.IN_COMPLEXITY_ASSESSMENT;
 
     await queue?.add(
         'complexityAssessment',
@@ -136,7 +139,7 @@ export async function enqueueTaskForCodeReview(reviewTask: ReviewTask) {
     }
     const queueName = toQueueName(reviewTask.owner, REVIEW_SUFFIX);
     const queue = getCreateQueue(queueName);
-
+    reviewTask.state = JobState.IN_CODE_REVIEW;
     await queue?.add(
         'codeReview',
         {task: reviewTask.toJSON()},
@@ -154,7 +157,7 @@ export async function enqueueTaskForFinalReport(reviewTask: ReviewTask) {
 
     const queueName = toQueueName(reviewTask.owner, REPORT_SUFFIX);
     const queue = getCreateQueue(queueName);
-
+    reviewTask.state = JobState.COMPLETED_CODE_REVIEW
     await queue?.add(
         'report',
         {task: reviewTask.toJSON()},

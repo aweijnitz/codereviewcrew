@@ -17,3 +17,4 @@ fi
 # Install dependencies
 docker pull redis
 docker pull ghcr.io/lhoupert/scc:master
+docker pull ejhayes/nodejs-bull-monitor:latest

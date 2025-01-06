@@ -4,6 +4,7 @@
 /node_modules
 
 data/sqlite/reports.db
+data/sqlite/reports_filled.db
 .env
 
 llm-*sh

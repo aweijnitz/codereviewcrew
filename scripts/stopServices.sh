@@ -1,13 +1,9 @@
 #!/usr/bin/env bash
 
 echo "Stopping services..."
-
-# Stop the Redis container
-docker stop myredis
-
+docker compose -f ./scripts/docker-compose.yml stop
 
 # prune all stopped containers, if the optional argument -p is provided, all containers will be removed
 if [ "$1" == "-p" ]; then
-    docker container prune -f
+    docker compose -f ./scripts/docker-compose.yml rm -f -v
 fi
-

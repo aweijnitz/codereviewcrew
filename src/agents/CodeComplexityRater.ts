@@ -5,7 +5,7 @@ import {zodToJsonSchema} from 'zod-to-json-schema';
 import getLogger from "../utils/getLogger.js";
 import formatDuration from "../utils/formatDuration.js";
 import {ComplexityResult, JobState} from "../interfaces.js";
-import ReviewTask from "../taskmanagement/ReviewTask";
+import ReviewTask from "../taskmanagement/ReviewTask.js";
 import * as process from "process";
 import {config} from "@dotenvx/dotenvx"; config();
 const logger = getLogger('CodeComplexityRater');
@@ -57,10 +57,13 @@ export default class CodeComplexityRater {
 
         if (!task)
             return Promise.reject(new Error('No task provided'));
-        if (task.state === JobState.NOT_INITIALIZED)
+        if (task.state === JobState.NOT_INITIALIZED) {
+            logger.error(`Task not initialized! Unexpected task state: ${task.toString()}`)
             return Promise.reject(new Error(`Unexpected task state: ${task.toString()}`));
+        }
 
         try {
+            logger.debug(`Agent ${this._name} calling Ollama API to analyze file ${task.fileName}...`)
             const response = await this._ollama.generate({
                 model: this.COMPLEXITY_MODEL_NAME,
                 format: jsonSchema,

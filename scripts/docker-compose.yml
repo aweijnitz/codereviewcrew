@@ -1,0 +1,32 @@
+services:
+  redis:
+    image: redis
+    container_name: myredis
+    volumes:
+      - ../data/redis/conf:/usr/local/etc/redis
+    command: redis-server /usr/local/etc/redis/redis.conf
+    ports:
+      - "6379:6379"
+    networks:
+      - app-network
+
+  bull-monitor:
+    image: ejhayes/nodejs-bull-monitor:latest
+    container_name: bull-monitor
+    environment:
+      NODE_ENV: development
+      REDIS_HOST: myredis
+      REDIS_PORT: 6379
+      PORT: 3000
+      BULL_WATCH_QUEUE_PREFIXES: bull
+      UI: bull-master
+    ports:
+      - "3000:3000"
+    depends_on:
+      - redis
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
