@@ -9,13 +9,11 @@ export interface CodeMetaData {
 }
 
 export interface ComplexityResult {
-    fileName: string;
     complexity: number;
     note: string;
 }
 
 export interface CodeReviewResult {
-    fileName: string;
     review: string;
 }
 
@@ -27,4 +25,14 @@ export enum JobState {
     IN_CODE_REVIEW,
     COMPLETED_CODE_REVIEW,
     COMPLETED
+}
+
+export interface ReviewTaskData {
+    id: string;
+    owner: string;
+    fileName: string;
+    code: string;
+    state: JobState;
+    complexity: ComplexityResult;
+    review: CodeReviewResult;
 }

@@ -1,18 +1,18 @@
 import {Ollama} from "ollama";
 import formatDuration from "../utils/formatDuration.js";
 import getLogger from "../utils/getLogger.js";
-import {CodeReviewResult} from "../interfaces";
+import ReviewTask from "../taskmanagement/ReviewTask";
+import {JobState} from "../interfaces.js";
+import * as process from "process";
 
 const logger = getLogger('CodeReviewer');
 
 export default class CodeReviewer {
-    private OLLAMA_HOST = 'http://127.0.0.1:11434'; // TODO: Read from .env
-    //private MODEL_NAME = 'nemotron-mini'; // TODO: Read from .env
-    private MODEL_NAME = 'qwen2.5-coder:7b'; // TODO: Read from config. Also see https://ollama.com/library/qwen2.5-coder
+
+    private OLLAMA_API_URL = process.env.OLLAMA_API_URL || 'OLLAMA_API_URL_NOT_SET';
+    private REVIEW_MODEL_NAME = process.env.REVIEW_MODEL_NAME || 'REVIEW_MODEL_NAME_NOT_SET'
 
     private _name: string;
-    private _fileName: string = '';
-    private _code: string = '';
     private _ollama: Ollama;
 
     private _prompt: string = `
@@ -24,45 +24,43 @@ export default class CodeReviewer {
 
     constructor(name: string) {
         this._name = name;
-        this._ollama = new Ollama({host: this.OLLAMA_HOST})
+        this._ollama = new Ollama({host: this.OLLAMA_API_URL})
     }
 
-    public setName(name: string): void {
-        this._name = name;
-    }
 
-    public getName(): string {
+    get name(): string {
         return this._name
     }
 
-    public setCode(fileName: string, code: string): void {
-        this._code = code;
-        this._fileName = fileName;
-    }
+    public async run(task: ReviewTask): Promise<ReviewTask> {
 
-    public async run(): Promise<CodeReviewResult> {
-        logger.info(`Agent ${this._name} running. Analyzing file ${this._fileName}`);
+        if(!task)
+            return Promise.reject(new Error('No task provided'));
 
-        if (!this._code || this._code.trim() === '')
-            return Promise.reject(new Error('No code to analyze (empty string)'));
-        if (!this._fileName || this._fileName.trim() === '')
-            return Promise.reject(new Error('No file name provided'));
+        logger.info(`Agent ${this._name} running. Analyzing file ${task.fileName}`);
+
+        if (!task)
+            return Promise.reject(new Error('No task provided'));
+        if (task.state === JobState.NOT_INITIALIZED)
+            return Promise.reject(new Error(`Unexpected task state: ${task.toString()}`));
+
         try {
             const response = await this._ollama.generate({
-                model: this.MODEL_NAME,
+                model: this.REVIEW_MODEL_NAME,
                 options: {
                     temperature: 0.25
                 },
                 system: this._prompt,
-                prompt: this._code
+                prompt: task.code
 
             })
-            logger.info(`Agent ${this._name} done! File: ${this._fileName}. Duration: ${formatDuration(response.total_duration)}`);
-            const result = `# ${this._fileName}\n\n${response.response}`;
-            return {
-                fileName: this._fileName,
+            logger.info(`Agent ${this._name} done! File: ${task.fileName}. Duration: ${formatDuration(response.total_duration)}`);
+            const result = `### ${task.fileName}\n\n${response.response}`;
+            task.review = {
                 review: result
             };
+            task.state = JobState.COMPLETED_CODE_REVIEW;
+            return task;
         } catch (error) {
             throw error;
         }

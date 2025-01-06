@@ -1,21 +1,42 @@
 import path from "path";
 import fs from "fs";
+import {QueueEvents, Job} from "bullmq";
 import {analyzeFolder} from "../tools/staticCodeAnalysis.js";
 import getLogger from "../utils/getLogger.js";
-import CodeComplexityRater from "./CodeComplexityRater.js";
-import CodeReviewer from "./CodeReviewer.js";
 import toCodeComplexityPrompt from "../utils/toCodeComplexityPrompt.js";
+import ReviewTask from "../taskmanagement/ReviewTask.js";
+import isProgrammingLanguage from "../utils/isProgrammingLanguage.js";
+
+import {
+    enqueueTaskForComplexityAssessment,
+    enqueueTaskForCodeReview,
+    enqueueTaskForFinalReport,
+    getCreateQueue,
+    COMPLEXITY_SUFFIX,
+    REPORT_SUFFIX,
+    REVIEW_SUFFIX,
+    toQueueName
+} from "../taskmanagement/queueManagement.js";
 import {JobState} from "../interfaces.js";
-import toCodeReviewPrompt from "../utils/toCodeReviewPrompt.js";
-import {ReviewTask} from "../utils/ReviewTask";
 
 
 const logger = getLogger('OrchestratorAgent');
 
+
 interface LanguageBin {
     Name: string;
-    Files: Array<{Location: string, Filename:string,Language:string, Size:number, Complexity:number,Lines:number,Code:number,Comments:number}>;
+    Files: Array<{
+        Location: string,
+        Filename: string,
+        Language: string,
+        Size: number,
+        Complexity: number,
+        Lines: number,
+        Code: number,
+        Comments: number
+    }>;
 }
+
 
 /**
  * OrchestratorAgent is a class that orchestrates the execution of other agents
@@ -29,19 +50,28 @@ interface LanguageBin {
  * - Collect the results of the code reviews and complexity assessments to produce a final report (enqueued in the finalReport array. Job starts when all other queued jobs are completed)
  */
 export default class OrchestratorAgent {
+    private static takenNames: Set<string> = new Set();
     private _name: string;
     private _folderPathAbsolute: string = '';
 
-    constructor(name: string) {
+    /**
+     * Create a new OrchestratorAgent with the given name and root folder path.
+     * Name must be unique. It acts as a basic tenant id, or job owner.
+     *
+     * @param name
+     * @param rootFolderPathAbsolute
+     */
+    constructor(name: string, rootFolderPathAbsolute: string = '') {
+        if (OrchestratorAgent.takenNames.has(name)) {
+            throw new Error(`Agent name "${name}" is already taken.`);
+        }
         this._name = name;
+        this._folderPathAbsolute = rootFolderPathAbsolute;
+        OrchestratorAgent.takenNames.add(name);
     }
 
     public get name(): string {
         return this._name;
-    }
-
-    public set folderPathAbsolute(folderPath: string) {
-        this._folderPathAbsolute = folderPath;
     }
 
     public get folderPathAbsolute(): string {
@@ -49,52 +79,104 @@ export default class OrchestratorAgent {
     }
 
     /**
-     * Run the OrchestratorAgent to produce a final report of the code review
+     * Run the OrchestratorAgent to analyze the codebase and produce a code review report.
      */
     public async run(): Promise<string> {
         logger.info(`Agent ${this._name} is running...`);
-        const state: Array<ReviewTask> = [];
+        let totalTaskCount = 0;
+        let tasksCompleted = 0;
+        const complexityQueueEvents = new QueueEvents(toQueueName(this.name, COMPLEXITY_SUFFIX));
+        const codeReviewQueueEvents = new QueueEvents(toQueueName(this.name, REVIEW_SUFFIX));
+        const reportQueueEvents = new QueueEvents(toQueueName(this.name, REPORT_SUFFIX));
+
         try {
-            logger.info("Scanning folder: " + this._folderPathAbsolute);
-            const analysisResult = await analyzeFolder(this._folderPathAbsolute); //scc static code analysis
 
-            const reviewJobs: Promise<void>[] = [];
-            let agentNr = 0;
-            analysisResult.forEach((languageBin: LanguageBin, index: number) => {
-
-                logger.debug(`Processing language bin ${index}: ${languageBin.Name}`);
-                for (const file of languageBin.Files) {
-                    const filePath = path.normalize(path.resolve(this._folderPathAbsolute + '/' + file.Location));
-                    logger.debug("Processing file: " + filePath);
-                    const code = fs.readFileSync(filePath, 'utf-8').toString();
-                    const complexityRater = new CodeComplexityRater('ComplexityRater-' + agentNr++);
-                    complexityRater.setCode(file.Location, toCodeComplexityPrompt(file, code));
-
-                    const fileJob = new ReviewTask(file.Location, JobState.WAITING_TO_RUN);
-                    state.push(fileJob);
-
-                    reviewJobs.push((async () => {
-                        fileJob.state = JobState.IN_COMPLEXITY_ASSESSMENT;
-                        const complexityResult = await complexityRater.run();
-                        fileJob.complexity = complexityResult;
-                        logger.debug(`Complexity assessment for ${file.Location}: ${complexityResult.complexity} - ${complexityResult.note}`);
-                        if (complexityResult.complexity <= 3) {
-                            fileJob.state = JobState.IN_CODE_REVIEW;
-                            const codeReviewer = new CodeReviewer('CodeReviewer-' + agentNr++);
-                            codeReviewer.setCode(file.Location, toCodeReviewPrompt(file, code));
-                            const reviewResult = await codeReviewer.run();
-                            fileJob.review = reviewResult;
-                            fileJob.state = JobState.COMPLETED_CODE_REVIEW;
-                        } else {
-                            fileJob.state = JobState.COMPLETED_COMPLEXITY_ASSESSMENT;
-                        }
-                        fileJob.state = JobState.COMPLETED;
-                    })());
+            // ___ Setup workflow logic
+            // TODO: Move as much of this out as possible to per-job 'completed' event handlers for greater throughput
+            //
+            // 1. Dispatch tasks based on the complexity assessment
+            complexityQueueEvents.on('completed', async ({jobId}) => {
+                let job: Job<any, any, string> | undefined;
+                const queueName = toQueueName(this.name, COMPLEXITY_SUFFIX);
+                const queue = getCreateQueue(queueName);
+                if (queue)
+                    job = await Job.fromId(queue, jobId);
+                else
+                    throw new Error('Queue not found! ' + queueName)
+                let task = ReviewTask.fromJSON(job?.returnvalue.result.task)
+                task.state = JobState.COMPLETED_COMPLEXITY_ASSESSMENT;
+                if (task.complexity.complexity >= 3) {
+                    // 2.0 Review code of files deemed too complex
+                    await enqueueTaskForCodeReview(task);
+                } else {
+                    // 2.1 Simple files get a pass and get sent to the report without review
+                    await enqueueTaskForFinalReport(task);
                 }
             });
 
+            // 3. Add reviewed code to the report queue
+            codeReviewQueueEvents.on('completed', async ({jobId}) => {
+                let job: Job<any, any, string> | undefined;
+                const queueName = toQueueName(this.name, REVIEW_SUFFIX);
+                const queue = getCreateQueue(queueName);
+                if (queue)
+                    job = await Job.fromId(queue, jobId);
+                else
+                    throw new Error('Queue not found! ' + queueName)
+                let task = ReviewTask.fromJSON(job?.returnvalue.result.task)
+                task.state = JobState.COMPLETED_CODE_REVIEW;
+                enqueueTaskForFinalReport(task);
+            });
 
-            await Promise.all(reviewJobs);
+            // 4. Prep report (per task prep)
+            reportQueueEvents.on('completed', async ({jobId}) => {
+                let job: Job<any, any, string> | undefined;
+                const queueName = toQueueName(this.name, REPORT_SUFFIX);
+                const queue = getCreateQueue(queueName);
+                if (queue)
+                    job = await Job.fromId(queue, jobId);
+                else
+                    throw new Error('Queue not found! ' + queueName)
+                let task = ReviewTask.fromJSON(job?.returnvalue.result.task)
+                task.state = JobState.COMPLETED;
+                tasksCompleted++
+            });
+
+            logger.info("Scanning folder: " + this._folderPathAbsolute);
+            //scc static code analysis. Produces file lists, binned by programming language.
+            const analysisResult = await analyzeFolder(this._folderPathAbsolute);
+
+            // For each language bin, iterate over the files and create review tasks
+            for (const languageBin of analysisResult) {
+                const index = analysisResult.indexOf(languageBin);
+                logger.debug(`Processing language bin ${index}: ${languageBin.Name}`);
+                // Skip non-supported languages
+                if (!isProgrammingLanguage(languageBin.Name)) {
+                    logger.info('Skipping files for non-supported language: ' + languageBin.Name);
+                    continue;
+                }
+                // Create review tasks for each file in the current language bin
+                for (const file of languageBin.Files) {
+                    const filePath = path.normalize(path.resolve(this._folderPathAbsolute + path.sep + file.Location));
+                    logger.debug("Processing file: " + filePath);
+                    const code = (await fs.promises.readFile(filePath, 'utf-8')).toString();
+                    const task = new ReviewTask(this.name, file.Location, toCodeComplexityPrompt(file, code));
+                    totalTaskCount++
+                    await enqueueTaskForComplexityAssessment(task);
+                } // end for file loop
+            } // end language bin loop
+
+            // At this point, all jobs are enqueued for review. Now we wait for them to complete.
+            logger.info(`All tasks enqueued. Total tasks: ${totalTaskCount}`);
+            logger.info(`Waiting for tasks to complete...`);
+            while (tasksCompleted < totalTaskCount) {
+                await new Promise(resolve => {
+                    logger.info(`Waiting for tasks to complete...`);
+                    return setTimeout(resolve, 2000)
+                });
+            }
+            logger.info(`All tasks COMPLETE. Total tasks: ${totalTaskCount}. Completed count: ${tasksCompleted}`);
+
         } catch (error) {
             throw new Error(`Agent ${this._name} failed to run: ${error}`);
         }
