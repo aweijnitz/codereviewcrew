@@ -95,7 +95,8 @@ Reply in Markdown format.
             const response = await this._ollama.generate({
                 model: this.REPORT_MODEL_NAME,
                 options: {
-                    temperature: 0.45
+                    temperature: 0.25,
+                    num_ctx: 50*1024, // 50kB context window
                 },
                 system: ReportCreator._prompt,
                 prompt: fileReviewsPrompt

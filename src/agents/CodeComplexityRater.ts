@@ -1,13 +1,16 @@
-import {config} from "@dotenvx/dotenvx"; config();
+import {config} from "@dotenvx/dotenvx";
+
+config();
 import {GenerateResponse, Ollama} from "ollama";
 import {z} from 'zod';
 import {zodToJsonSchema} from 'zod-to-json-schema';
 
+import process from "process";
 import getLogger from "../utils/getLogger.js";
 import formatDuration from "../utils/formatDuration.js";
 import {AgentStats, JobState, LLMStats} from "../interfaces.js";
 import ReviewTask from "../taskmanagement/ReviewTask.js";
-import process from "process";
+import {createOllamaConnection} from "./ollamaConnect.js";
 
 const logger = getLogger('CodeComplexityRater');
 
@@ -16,7 +19,6 @@ const logger = getLogger('CodeComplexityRater');
  */
 export default class CodeComplexityRater implements AgentStats {
 
-    private static OLLAMA_API_URL = process.env.OLLAMA_API_URL || 'OLLAMA_API_URL_NOT_SET';
     private static COMPLEXITY_MODEL_NAME = process.env.COMPLEXITY_MODEL_NAME || 'COMPLEXITY_MODEL_NAME_NOT_SET';
 
     private readonly _name: string;
@@ -44,7 +46,7 @@ Ensure that the complexity rating is always a whole number within the range of 1
 
     constructor(name: string) {
         this._name = name;
-        this._ollama = new Ollama({host: CodeComplexityRater.OLLAMA_API_URL});
+        this._ollama = createOllamaConnection();
     }
 
     get name(): string {
@@ -83,7 +85,8 @@ Ensure that the complexity rating is always a whole number within the range of 1
                 model: CodeComplexityRater.COMPLEXITY_MODEL_NAME,
                 format: jsonSchema,
                 options: {
-                    temperature: 0.15
+                    temperature: 0.15,
+                    num_ctx: 10*1024, // 10kB context window
                 },
                 system: this._prompt,
                 prompt: task.code
@@ -106,6 +109,8 @@ Ensure that the complexity rating is always a whole number within the range of 1
                 note: result.note,
                 complexity: result.complexity
             };
+
+
             task.state = JobState.COMPLETED_COMPLEXITY_ASSESSMENT
             return task;
 

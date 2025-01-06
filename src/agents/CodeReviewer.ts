@@ -60,7 +60,8 @@ export default class CodeReviewer implements AgentStats {
             const response = await this._ollama.generate({
                 model: this.REVIEW_MODEL_NAME,
                 options: {
-                    temperature: 0.25
+                    temperature: 0.25,
+                    num_ctx: 10*1024, // 10kB context window
                 },
                 system: this._prompt,
                 prompt: task.code
