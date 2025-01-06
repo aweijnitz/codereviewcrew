@@ -18,3 +18,12 @@ export interface CodeReviewResult {
     fileName: string;
     review: string;
 }
+
+export enum JobState {
+    WAITING_TO_RUN,
+    IN_COMPLEXITY_ASSESSMENT,
+    COMPLETED_COMPLEXITY_ASSESSMENT,
+    IN_CODE_REVIEW,
+    COMPLETED_CODE_REVIEW,
+    COMPLETED
+}

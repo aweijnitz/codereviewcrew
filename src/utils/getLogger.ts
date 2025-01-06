@@ -1,7 +1,7 @@
 import pino from 'pino';
 
 const rootLogger = pino({
-    level: process.env['LOG_ELEVEL'] || 'info',
+    level: process.env.LOG_ELEVEL || 'debug',
     name: 'CodeReviewTeam'
 });
 const loggers: { [key: string]: pino.Logger } = {};

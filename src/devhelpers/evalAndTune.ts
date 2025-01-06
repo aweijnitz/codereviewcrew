@@ -2,7 +2,7 @@ import fs from "fs";
 import CodeComplexityRater from "../agents/CodeComplexityRater.js";
 import CodeReviewer from "../agents/CodeReviewer.js";
 
-const runReviewer = true;
+const runReviewer = false;
 const runRater = false;
 const fileName = '/Users/aweijnitz/IdeaProjects/Agentic-CodeReviweCrew/src/agents/CodeReviewer.ts';
 
