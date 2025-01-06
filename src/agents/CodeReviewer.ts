@@ -4,7 +4,7 @@ import getLogger from "../utils/getLogger.js";
 import ReviewTask from "../taskmanagement/ReviewTask";
 import {JobState} from "../interfaces.js";
 import * as process from "process";
-
+import {config} from "@dotenvx/dotenvx"; config();
 const logger = getLogger('CodeReviewer');
 
 export default class CodeReviewer {

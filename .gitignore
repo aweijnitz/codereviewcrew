@@ -3,6 +3,7 @@
 /build
 /node_modules
 
+data/sqlite/reports.db
 .env
 
 llm-*sh

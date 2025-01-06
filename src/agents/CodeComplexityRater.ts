@@ -7,7 +7,7 @@ import formatDuration from "../utils/formatDuration.js";
 import {ComplexityResult, JobState} from "../interfaces.js";
 import ReviewTask from "../taskmanagement/ReviewTask";
 import * as process from "process";
-
+import {config} from "@dotenvx/dotenvx"; config();
 const logger = getLogger('CodeComplexityRater');
 
 /**

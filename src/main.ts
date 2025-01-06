@@ -3,18 +3,27 @@ import * as path from "path";
 import IORedis from "ioredis";
 import {Worker} from "bullmq";
 
-import {COMPLEXITY_SUFFIX, REPORT_SUFFIX, REVIEW_SUFFIX, toQueueName} from "./taskmanagement/queueManagement.js";
+import {
+    COMPLEXITY_SUFFIX,
+    REPORT_SUFFIX,
+    REVIEW_SUFFIX,
+    toQueueName
+} from "./taskmanagement/queueManagement.js";
 import getLogger from "./utils/getLogger.js";
 import OrchestratorAgent from "./agents/OrchestratorAgent.js";
+import {mountShutdownHooks} from "./utils/gracefulShutdown.js";
 
 
 const logger = getLogger('main');
 
 const rootPath = './src'
 const folderPathAbsolute = path.normalize(path.resolve(rootPath));
+const agentName = `OrchestratorAgent-${folderPathAbsolute}`;
 
-const main = async (rootFolder: string) => {
-    const agent = new OrchestratorAgent(`OrchestratorAgent-${folderPathAbsolute}`, folderPathAbsolute);
+mountShutdownHooks();
+
+const main = async (agentName: string, folderPathAbsolute: string) => {
+    const agent = new OrchestratorAgent(agentName, folderPathAbsolute);
 
     // TODO: Setup workers for the queues (complexity, review, report generation)
 
@@ -30,7 +39,7 @@ const main = async (rootFolder: string) => {
     const workerComplexity = new Worker(
         toQueueName(agent.name, COMPLEXITY_SUFFIX),
         async job => {
-            logger.debug('ComplexityWorker: '+job.id)
+            logger.debug('ComplexityWorker: ' + job.id)
             return {
                 jobId: job.id,
                 result: job.data
@@ -41,7 +50,7 @@ const main = async (rootFolder: string) => {
     const workerReview = new Worker(
         toQueueName(agent.name, REVIEW_SUFFIX),
         async job => {
-            logger.debug('reviewWorker: '+job.id)
+            logger.debug('reviewWorker: ' + job.id)
             return {
                 jobId: job.id,
                 result: job.data
@@ -52,7 +61,7 @@ const main = async (rootFolder: string) => {
     const workerReport = new Worker(
         toQueueName(agent.name, REPORT_SUFFIX),
         async job => {
-            logger.debug('reportWorker: '+job.id)
+            logger.debug('reportWorker: ' + job.id)
             return {
                 jobId: job.id,
                 result: job.data
@@ -65,7 +74,9 @@ const main = async (rootFolder: string) => {
     return agent.run();
 }
 
-await main(folderPathAbsolute).then(report => logger.info(report));
+ await main(agentName, folderPathAbsolute).then(report => logger.info(report));
+//await drainAndDelete(agentName);
+
 
 
 

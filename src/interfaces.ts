@@ -17,15 +17,6 @@ export interface CodeReviewResult {
     review: string;
 }
 
-export enum JobState {
-    NOT_INITIALIZED,
-    WAITING_TO_RUN,
-    IN_COMPLEXITY_ASSESSMENT,
-    COMPLETED_COMPLEXITY_ASSESSMENT,
-    IN_CODE_REVIEW,
-    COMPLETED_CODE_REVIEW,
-    COMPLETED
-}
 
 export interface ReviewTaskData {
     id: string;
@@ -36,3 +27,14 @@ export interface ReviewTaskData {
     complexity: ComplexityResult;
     review: CodeReviewResult;
 }
+
+export enum JobState {
+    NOT_INITIALIZED,
+    WAITING_TO_RUN,
+    IN_COMPLEXITY_ASSESSMENT,
+    COMPLETED_COMPLEXITY_ASSESSMENT,
+    IN_CODE_REVIEW,
+    COMPLETED_CODE_REVIEW,
+    COMPLETED
+}
+

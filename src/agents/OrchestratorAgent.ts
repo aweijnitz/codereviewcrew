@@ -1,6 +1,9 @@
 import path from "path";
 import fs from "fs";
 import {QueueEvents, Job} from "bullmq";
+import {config} from "@dotenvx/dotenvx";
+
+config();
 import {analyzeFolder} from "../tools/staticCodeAnalysis.js";
 import getLogger from "../utils/getLogger.js";
 import toCodeComplexityPrompt from "../utils/toCodeComplexityPrompt.js";
@@ -15,9 +18,10 @@ import {
     COMPLEXITY_SUFFIX,
     REPORT_SUFFIX,
     REVIEW_SUFFIX,
-    toQueueName
+    toQueueName, increaseCompletedJobsCount, getTotalJobsCount, allJobsCompleted, getCompletedJobsCount
 } from "../taskmanagement/queueManagement.js";
 import {JobState} from "../interfaces.js";
+import {createReviewTaskTable, persistReviewTask} from "../db/schema.js";
 
 
 const logger = getLogger('OrchestratorAgent');
@@ -56,7 +60,7 @@ export default class OrchestratorAgent {
 
     /**
      * Create a new OrchestratorAgent with the given name and root folder path.
-     * Name must be unique. It acts as a basic tenant id, or job owner.
+     * Name must be unique. It acts as a basic tenant id, and job owner.
      *
      * @param name
      * @param rootFolderPathAbsolute
@@ -68,6 +72,7 @@ export default class OrchestratorAgent {
         this._name = name;
         this._folderPathAbsolute = rootFolderPathAbsolute;
         OrchestratorAgent.takenNames.add(name);
+        createReviewTaskTable(name);
     }
 
     public get name(): string {
@@ -83,8 +88,6 @@ export default class OrchestratorAgent {
      */
     public async run(): Promise<string> {
         logger.info(`Agent ${this._name} is running...`);
-        let totalTaskCount = 0;
-        let tasksCompleted = 0;
         const complexityQueueEvents = new QueueEvents(toQueueName(this.name, COMPLEXITY_SUFFIX));
         const codeReviewQueueEvents = new QueueEvents(toQueueName(this.name, REVIEW_SUFFIX));
         const reportQueueEvents = new QueueEvents(toQueueName(this.name, REPORT_SUFFIX));
@@ -139,7 +142,9 @@ export default class OrchestratorAgent {
                     throw new Error('Queue not found! ' + queueName)
                 let task = ReviewTask.fromJSON(job?.returnvalue.result.task)
                 task.state = JobState.COMPLETED;
-                tasksCompleted++
+                // TODO: Use another agent to review the outcome of the review here and send it back for re-review if needed.
+                persistReviewTask(task);
+                await increaseCompletedJobsCount(this.name);
             });
 
             logger.info("Scanning folder: " + this._folderPathAbsolute);
@@ -161,21 +166,20 @@ export default class OrchestratorAgent {
                     logger.debug("Processing file: " + filePath);
                     const code = (await fs.promises.readFile(filePath, 'utf-8')).toString();
                     const task = new ReviewTask(this.name, file.Location, toCodeComplexityPrompt(file, code));
-                    totalTaskCount++
                     await enqueueTaskForComplexityAssessment(task);
                 } // end for file loop
             } // end language bin loop
 
             // At this point, all jobs are enqueued for review. Now we wait for them to complete.
-            logger.info(`All tasks enqueued. Total tasks: ${totalTaskCount}`);
+            logger.info(`All tasks enqueued. Total tasks: ${await getTotalJobsCount(this.name)}`);
             logger.info(`Waiting for tasks to complete...`);
-            while (tasksCompleted < totalTaskCount) {
+            while (!(await allJobsCompleted(this.name))) {
                 await new Promise(resolve => {
                     logger.info(`Waiting for tasks to complete...`);
                     return setTimeout(resolve, 2000)
                 });
             }
-            logger.info(`All tasks COMPLETE. Total tasks: ${totalTaskCount}. Completed count: ${tasksCompleted}`);
+            logger.info(`All tasks COMPLETE. Total tasks: ${await getTotalJobsCount(this.name)}. Completed count: ${await getCompletedJobsCount(this.name)}`);
 
         } catch (error) {
             throw new Error(`Agent ${this._name} failed to run: ${error}`);

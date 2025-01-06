@@ -1,7 +1,7 @@
 import fs from "fs";
 import CodeComplexityRater from "../agents/CodeComplexityRater.js";
 import CodeReviewer from "../agents/CodeReviewer.js";
-import ReviewTask from "../taskmanagement/ReviewTask";
+import ReviewTask from "../taskmanagement/ReviewTask.js";
 import {JobState} from "../interfaces.js";
 
 const runRater = true;
