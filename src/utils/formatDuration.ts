@@ -3,6 +3,7 @@
  * @param nanoSecondsDuration
  */
 export default function formatDuration(nanoSecondsDuration: number): string {
+    if(nanoSecondsDuration < 0) return '00:00:00';
     const totalSeconds = Math.floor(nanoSecondsDuration / 1e9);
     const hours = Math.floor(totalSeconds / 3600);
     const minutes = Math.floor((totalSeconds % 3600) / 60);
