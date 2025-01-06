@@ -1,23 +1,28 @@
 import {config} from "@dotenvx/dotenvx";
-import {Ollama} from "ollama";
+import {GenerateResponse, Ollama} from "ollama";
 import process from "process";
 
 import {getAllCodeReviews, getTaskCountByComplexity, getTopProblematicFilesByComplexity} from "../db/schema.js";
 import getLogger from "../utils/getLogger.js";
 import {generateMarkdownForComplexityCounts, generateMarkdownForProblematicFiles} from "../utils/reportHelpers.js";
 import formatDuration from "../utils/formatDuration.js";
+import {AgentStats, LLMStats} from "../interfaces";
 
 config();
 const logger = getLogger('ReportCreator');
 
-export class ReportCreator {
+export class ReportCreator implements AgentStats {
     private OLLAMA_API_URL = process.env.OLLAMA_API_URL || 'OLLAMA_API_URL_NOT_SET';
     private REPORT_MODEL_NAME = process.env.REPORT_MODEL_NAME || 'REPORT_MODEL_NAME_NOT_SET';
 
-    private _name: string;
+    private readonly _name: string;
     private _orchestratorName: string;
     private _ollama: Ollama;
-
+    private _llmStats: LLMStats = {
+        promptTokens: 0,
+        responseTokens: 0,
+        totalDurationNanos: 0
+    }
 
     private static _prompt =`
     You are an AI language model tasked with generating a high-level summary for engineering and 
@@ -61,6 +66,10 @@ Reply in Markdown format.
         return this._name;
     }
 
+    get llmStats(): LLMStats {
+        return this._llmStats;
+    }
+
     set orchestratorName(name) {
         this._orchestratorName = name
     }
@@ -86,12 +95,13 @@ Reply in Markdown format.
             const response = await this._ollama.generate({
                 model: this.REPORT_MODEL_NAME,
                 options: {
-                    temperature: 0.55
+                    temperature: 0.45
                 },
                 system: ReportCreator._prompt,
                 prompt: fileReviewsPrompt
 
             })
+            this.updateStats(response);
             logger.info(`Agent ${this._name} report done! Duration: ${formatDuration(response.total_duration)}, Prompt tokens: ${response.prompt_eval_count}, Response tokens: ${response.eval_count}`);
 
             result += response.response;
@@ -110,4 +120,9 @@ Reply in Markdown format.
         return result;
     }
 
+    private updateStats(response: GenerateResponse) {
+        this._llmStats.promptTokens += response.prompt_eval_count;
+        this._llmStats.responseTokens += response.eval_count;
+        this._llmStats.totalDurationNanos += response.total_duration;
+    }
 }

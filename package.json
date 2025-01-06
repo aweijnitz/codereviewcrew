@@ -7,8 +7,8 @@
   "target": "es2022",
   "scripts": {
     "test": "jest",
-    "dev": "tsc && LOG_LEVEL=debug node build/src/main.js | pino-pretty",
-    "start": "tsc && node build/src/main.js",
+    "dev": "tsc && LOG_LEVEL=debug node build/src/main.js ./src/db | pino-pretty",
+    "start": "./reviewCodeBase.sh ./src/db",
     "clean": "rm -rf ./build",
     "lint": "eslint ./src",
     "build": "tsc"
@@ -38,7 +38,6 @@
     "jest": "^29.7.0",
     "nodemon": "^3.1.9",
     "ts-jest": "^29.2.5",
-    "ts-node": "^10.9.2",
     "typescript": "5.6.3",
     "typescript-eslint": "^8.18.1"
   }

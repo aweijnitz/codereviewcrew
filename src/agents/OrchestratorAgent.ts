@@ -21,13 +21,11 @@ import {
     getTotalJobsCount,
     allJobsCompleted,
     getCompletedJobsCount,
-    deleteJobCounters
+    updateLLMStats, resetJobCounters
 } from "../taskmanagement/queueManagement.js";
-import {JobState} from "../interfaces.js";
+import {JobState, LLMStats} from "../interfaces.js";
 import {createReviewTaskTable, persistReviewTask} from "../db/schema.js";
-import * as process from "process";
 import {ReportCreator} from "./ReportCreator.js";
-
 
 const logger = getLogger('OrchestratorAgent');
 
@@ -65,7 +63,6 @@ export default class OrchestratorAgent {
     private _skipAnalysis: boolean = false;
     private _skipReport: boolean = false;
 
-
     /**
      * Create a new OrchestratorAgent with the given name and root folder path.
      * Name must be unique. It acts as a basic tenant id, and job owner.
@@ -88,6 +85,7 @@ export default class OrchestratorAgent {
         createReviewTaskTable(name);
     }
 
+
     public get name(): string {
         return this._name;
     }
@@ -107,7 +105,7 @@ export default class OrchestratorAgent {
         let finalReport ='';
         try {
             if (!this._skipAnalysis) {
-                await deleteJobCounters(this.name); // reset job state
+                await resetJobCounters(this.name); // reset state
 
                 // ___ Setup workflow logic
                 // TODO: Move as much of this out as possible to per-job 'completed' event handlers for (slightly) improved throughput. Less readable though?
@@ -202,6 +200,7 @@ export default class OrchestratorAgent {
                 logger.info(`${this.name} Generating final report...`)
                 const reporterAgent = new ReportCreator(this.name+'_ReportCreator', this.name );
                 finalReport = await reporterAgent.run();
+                await updateLLMStats(this.name, reporterAgent.llmStats);
             }
 
         } catch (error) {

@@ -32,7 +32,7 @@ export function getDB(): Database.Database {
     if(!db) {
         logger.debug(`Creating db in ${process.env.DB_FILE_NAME || 'DB_FILE_NAME_NOT_SET'}`);
         db = new Database(process.env.DB_FILE_NAME || 'DB_FILE_NAME_NOT_SET', {
-            verbose: console.debug,
+            //verbose: console.debug,
             fileMustExist: false
         });
     }

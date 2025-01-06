@@ -1,25 +1,32 @@
-import {Ollama} from "ollama";
+import {config} from "@dotenvx/dotenvx"; config();
+import {GenerateResponse, Ollama} from "ollama";
 import {z} from 'zod';
 import {zodToJsonSchema} from 'zod-to-json-schema';
 
 import getLogger from "../utils/getLogger.js";
 import formatDuration from "../utils/formatDuration.js";
-import {ComplexityResult, JobState} from "../interfaces.js";
+import {AgentStats, JobState, LLMStats} from "../interfaces.js";
 import ReviewTask from "../taskmanagement/ReviewTask.js";
-import * as process from "process";
-import {config} from "@dotenvx/dotenvx"; config();
+import process from "process";
+
 const logger = getLogger('CodeComplexityRater');
 
 /**
  * Agent that rates the complexity of a given source code string.
  */
-export default class CodeComplexityRater {
+export default class CodeComplexityRater implements AgentStats {
 
-    private OLLAMA_API_URL = process.env.OLLAMA_API_URL || 'OLLAMA_API_URL_NOT_SET';
-    private COMPLEXITY_MODEL_NAME = process.env.COMPLEXITY_MODEL_NAME || 'COMPLEXITY_MODEL_NAME_NOT_SET';
+    private static OLLAMA_API_URL = process.env.OLLAMA_API_URL || 'OLLAMA_API_URL_NOT_SET';
+    private static COMPLEXITY_MODEL_NAME = process.env.COMPLEXITY_MODEL_NAME || 'COMPLEXITY_MODEL_NAME_NOT_SET';
 
-    private _name: string;
+    private readonly _name: string;
     private _ollama: Ollama;
+
+    private _llmStats: LLMStats = {
+        promptTokens: 0,
+        responseTokens: 0,
+        totalDurationNanos: 0
+    }
 
     private _prompt: string = `
 You are an expert code reviewer. Your task is to evaluate the provided source code based on its complexity, maintainability, and readability. 
@@ -37,17 +44,21 @@ Ensure that the complexity rating is always a whole number within the range of 1
 
     constructor(name: string) {
         this._name = name;
-        this._ollama = new Ollama({host: this.OLLAMA_API_URL});
+        this._ollama = new Ollama({host: CodeComplexityRater.OLLAMA_API_URL});
     }
 
     get name(): string {
         return this._name;
     }
 
+    get llmStats(): LLMStats {
+        return this._llmStats;
+    }
+
 
     public async run(task?: ReviewTask): Promise<ReviewTask> {
 
-        if(!task)
+        if (!task)
             return Promise.reject(new Error('No task provided'));
 
         logger.info(`Agent ${this._name} running. Analyzing file ${task.fileName}...`);
@@ -69,7 +80,7 @@ Ensure that the complexity rating is always a whole number within the range of 1
         try {
             logger.debug(`Agent ${this._name} calling Ollama API to analyze file ${task.fileName}...`)
             const response = await this._ollama.generate({
-                model: this.COMPLEXITY_MODEL_NAME,
+                model: CodeComplexityRater.COMPLEXITY_MODEL_NAME,
                 format: jsonSchema,
                 options: {
                     temperature: 0.15
@@ -78,11 +89,12 @@ Ensure that the complexity rating is always a whole number within the range of 1
                 prompt: task.code
             });
 
+            this.updateStats(response);
             logger.info(`Agent ${this._name} done! File: ${task.fileName}, Duration: ${formatDuration(response.total_duration)}, Prompt tokens: ${response.prompt_eval_count}, Response tokens: ${response.eval_count}`);
             const result = complexitySchema.parse(JSON.parse(response.response));
 
             // Simpler models sometimes get it wrong. Clamp value.
-            if(result.complexity > 5) {
+            if (result.complexity > 5) {
                 logger.warn(`Agent ${this._name} found a complexity of ${result.complexity} for file ${task.fileName}. This is higher than the maximum allowed complexity of 5. Please consider tuning the prompt using this file.`);
                 result.complexity = 5;
             } else if (result.complexity < 1) {
@@ -100,6 +112,12 @@ Ensure that the complexity rating is always a whole number within the range of 1
         } catch (error) {
             throw error;
         }
+    }
+
+    private updateStats(response: GenerateResponse) {
+        this._llmStats.promptTokens += response.prompt_eval_count;
+        this._llmStats.responseTokens += response.eval_count;
+        this._llmStats.totalDurationNanos += response.total_duration;
     }
 }
 

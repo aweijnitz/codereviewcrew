@@ -2,7 +2,7 @@ import * as crypto from 'crypto';
 import {Job, Queue} from "bullmq";
 import ReviewTask from "./ReviewTask";
 import getLogger from "../utils/getLogger.js";
-import {JobState, ReviewTaskData} from "../interfaces.js";
+import {JobState, LLMStats, ReviewTaskData} from "../interfaces.js";
 import IORedis from "ioredis";
 import * as process from "process";
 import {config} from "@dotenvx/dotenvx";
@@ -14,13 +14,15 @@ const logger = getLogger('queueManagement');
 export const COMPLEXITY_SUFFIX = '-complexities';
 export const REVIEW_SUFFIX = '-code_reviews';
 export const REPORT_SUFFIX = '-report'
+const LLM_STATS_KEY = 'llm_stats';
+
 export const activeQueues = new Map<string, Queue>();
 const redisPort = process.env.REDIS_PORT ? parseInt(process.env.REDIS_PORT, 10) : 6379;
 
 const redis = new IORedis(redisPort, process.env.REDIS_HOST || 'REDIS_HOST_NOT_SET', {maxRetriesPerRequest: 3});
 
 const jobOptions = {
-    attempts: 3,
+    attempts: 5,
     backoff: {
         type: 'exponential',
         delay: 1000
@@ -34,6 +36,7 @@ const jobOptions = {
         count: 1000, // keep up to 1000 jobs
     }
 };
+
 
 /**
  * Returns unique queueName  based on the owner string and suffix
@@ -101,6 +104,11 @@ export async function getCompletedJobsCount(owner: string) {
 
 export async function deleteJobCounters(owner: string) {
     return redis.del(owner + '-total', owner + '-completed');
+}
+
+export async function resetJobCounters(owner: string) {
+    await redis.set(owner + '-completed', 0);
+    return redis.set(owner + '-total', 0);
 }
 
 export async function allJobsCompleted(owner: string): Promise<boolean> {
@@ -184,3 +192,35 @@ export async function obliterateAllQueues() {
 
     await redis.quit();
 }
+
+export async function clearLLMStats(prefix: string): Promise<void> {
+    const key = `${prefix}:${LLM_STATS_KEY}`;
+    await redis.del(key);
+}
+
+export async function readLLMStats(prefix: string): Promise<LLMStats> {
+    const key = `${prefix}:${LLM_STATS_KEY}`;
+    const result = await redis.hgetall(key);
+    if (Object.keys(result).length > 0) {
+        return {
+            promptTokens: parseInt(result.promptTokens || '0', 10),
+            responseTokens: parseInt(result.responseTokens || '0', 10),
+            totalDurationNanos: parseInt(result.totalDurationNanos || '0', 10)
+        };
+    }
+    return {
+        promptTokens: 0,
+        responseTokens: 0,
+        totalDurationNanos: 0
+    } as LLMStats;
+}
+
+export async function updateLLMStats(prefix: string, stats: LLMStats): Promise<void> {
+    const key = `${prefix}:${LLM_STATS_KEY}`;
+    await redis.hincrby(key, 'promptTokens', stats.promptTokens);
+    await redis.hincrby(key, 'responseTokens', stats.responseTokens);
+    await redis.hincrby(key, 'totalDurationNanos', stats.totalDurationNanos);
+}
+
+
+

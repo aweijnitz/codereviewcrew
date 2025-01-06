@@ -1,19 +1,24 @@
-import {Ollama} from "ollama";
+import {GenerateResponse, Ollama} from "ollama";
 import formatDuration from "../utils/formatDuration.js";
 import getLogger from "../utils/getLogger.js";
 import ReviewTask from "../taskmanagement/ReviewTask.js";
-import {JobState} from "../interfaces.js";
+import {AgentStats, JobState, LLMStats} from "../interfaces.js";
 import * as process from "process";
 import {config} from "@dotenvx/dotenvx"; config();
 const logger = getLogger('CodeReviewer');
 
-export default class CodeReviewer {
+export default class CodeReviewer implements AgentStats {
 
     private OLLAMA_API_URL = process.env.OLLAMA_API_URL || 'OLLAMA_API_URL_NOT_SET';
     private REVIEW_MODEL_NAME = process.env.REVIEW_MODEL_NAME || 'REVIEW_MODEL_NAME_NOT_SET'
 
-    private _name: string;
+    private readonly _name: string;
     private _ollama: Ollama;
+    private _llmStats: LLMStats = {
+        promptTokens: 0,
+        responseTokens: 0,
+        totalDurationNanos: 0
+    }
 
     private _prompt: string = `
     You are a code reviewer. You will be provided with source code. Your job is to review the code to find bugs, identify areas for improvement, 
@@ -30,6 +35,10 @@ export default class CodeReviewer {
 
     get name(): string {
         return this._name
+    }
+
+    get llmStats(): LLMStats {
+        return this._llmStats;
     }
 
     public async run(task: ReviewTask): Promise<ReviewTask> {
@@ -57,6 +66,7 @@ export default class CodeReviewer {
                 prompt: task.code
 
             })
+            this.updateStats(response);
             logger.info(`Agent ${this._name} done! File: ${task.fileName}, Duration: ${formatDuration(response.total_duration)}, Prompt tokens: ${response.prompt_eval_count}, Response tokens: ${response.eval_count}`);
 
             const result = `### ${task.fileName}\n\n${response.response}`;
@@ -68,5 +78,11 @@ export default class CodeReviewer {
         } catch (error) {
             throw error;
         }
+    }
+
+    private updateStats(response: GenerateResponse) {
+        this._llmStats.promptTokens += response.prompt_eval_count;
+        this._llmStats.responseTokens += response.eval_count;
+        this._llmStats.totalDurationNanos += response.total_duration;
     }
 }

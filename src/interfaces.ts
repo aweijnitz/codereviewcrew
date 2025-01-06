@@ -58,3 +58,13 @@ export interface AgentJobData {
     jobId: string,
     result: ReviewTaskData,
 }
+
+export interface LLMStats {
+    promptTokens: number,
+    responseTokens: number,
+    totalDurationNanos: number
+}
+
+export interface AgentStats {
+    llmStats: LLMStats;
+}

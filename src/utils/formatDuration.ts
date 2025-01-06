@@ -2,7 +2,7 @@
  * Formats a duration in nano seconds to a string in the format `hh:mm:ss`.
  * @param nanoSecondsDuration
  */
-export default function formatDuration(nanoSecondsDuration: number): string {
+export default function formatDuration_OLD(nanoSecondsDuration: number): string {
     if(nanoSecondsDuration < 0) return '00:00:00';
     const totalSeconds = Math.floor(nanoSecondsDuration / 1e9);
     const hours = Math.floor(totalSeconds / 3600);
@@ -13,3 +13,4 @@ export default function formatDuration(nanoSecondsDuration: number): string {
 
     return formattedTime;
 }
+

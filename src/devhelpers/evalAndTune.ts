@@ -31,6 +31,7 @@ if (runReviewer) {
 }
 
 if(runReporter) {
+    // First run a complete review to fill the database once. Also, set CLEAR_DATA_ON_EXIT=false in .env before.
     const name = 'reporterAgent-00'
     const orchestratorName = 'OrchestratorAgent-/Users/aweijnitz/IdeaProjects/Agentic-CodeReviweCrew/src';
     const reportCreator = new ReportCreator(name, orchestratorName);

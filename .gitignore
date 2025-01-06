@@ -7,6 +7,8 @@ data/sqlite/reports.db
 data/sqlite/reports_filled.db
 .env
 
+code-*md
+
 llm-*sh
 
 # Logs
