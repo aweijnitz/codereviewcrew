@@ -1,11 +1,12 @@
 import * as crypto from 'crypto';
-import {Queue} from "bullmq";
+import {Job, Queue} from "bullmq";
 import ReviewTask from "./ReviewTask";
 import getLogger from "../utils/getLogger.js";
-import {JobState} from "../interfaces.js";
+import {JobState, ReviewTaskData} from "../interfaces.js";
 import IORedis from "ioredis";
 import * as process from "process";
 import {config} from "@dotenvx/dotenvx";
+import {AgentJobData, AgentWorkerResult} from "../interfaces.js";
 
 config();
 const logger = getLogger('queueManagement');
@@ -16,7 +17,7 @@ export const REPORT_SUFFIX = '-report'
 export const activeQueues = new Map<string, Queue>();
 const redisPort = process.env.REDIS_PORT ? parseInt(process.env.REDIS_PORT, 10) : 6379;
 
-const redis = new IORedis(redisPort, process.env.REDIS_HOST || 'REDIS_HOST_NOT_SET', { maxRetriesPerRequest: 3 });
+const redis = new IORedis(redisPort, process.env.REDIS_HOST || 'REDIS_HOST_NOT_SET', {maxRetriesPerRequest: 3});
 
 const jobOptions = {
     attempts: 3,
@@ -62,6 +63,7 @@ export function getCreateQueue(queueName: string): Queue | undefined {
  * @param force - Do not wait for queue to drain
  */
 export async function drainAndDelete(owner: string, force: boolean = false) {
+    logger.debug(`Starting to clear all temporary queue data for ${owner}`)
     let queueName = toQueueName(owner, COMPLEXITY_SUFFIX);
     let queue = getCreateQueue(queueName);
     await queue?.obliterate({force});
@@ -78,41 +80,40 @@ export async function drainAndDelete(owner: string, force: boolean = false) {
     activeQueues.delete(queueName);
 
     await deleteJobCounters(owner);
-    logger.info(`All temporary data cleared for ${owner}`)
+    logger.info(`All temporary queue data cleared for ${owner}`)
 }
 
-export async function increaseTotalJobsCount(owner:string) {
-    return redis.incr(owner+'-total');
+export async function increaseTotalJobsCount(owner: string) {
+    return redis.incr(owner + '-total');
 }
 
-export async function getTotalJobsCount(owner:string) {
-    return redis.get(owner+'-total');
+export async function getTotalJobsCount(owner: string) {
+    return redis.get(owner + '-total');
 }
 
-export async function increaseCompletedJobsCount(owner:string) {
-    return redis.incr(owner+'-completed');
+export async function increaseCompletedJobsCount(owner: string) {
+    return redis.incr(owner + '-completed');
 }
 
-export async function getCompletedJobsCount(owner:string) {
-    return redis.get(owner+'-completed');
+export async function getCompletedJobsCount(owner: string) {
+    return redis.get(owner + '-completed');
 }
 
-export async function deleteJobCounters(owner:string){
-    return redis.del(owner+'-total', owner+'-completed');
+export async function deleteJobCounters(owner: string) {
+    return redis.del(owner + '-total', owner + '-completed');
 }
 
-export async function allJobsCompleted(owner:string) : Promise<boolean> {
-    if(await getTotalJobsCount(owner) === await getCompletedJobsCount(owner))
+export async function allJobsCompleted(owner: string): Promise<boolean> {
+    if (await getTotalJobsCount(owner) === await getCompletedJobsCount(owner))
         return true;
     else
         return false;
 }
 
 
-
 export async function enqueueTaskForComplexityAssessment(reviewTask: ReviewTask) {
     logger.debug(`Enqueuing task for complexity assessment: ${reviewTask.fileName}`);
-    if(reviewTask.state === JobState.COMPLETED) {
+    if (reviewTask.state === JobState.COMPLETED) {
         logger.warn(`Skipping completed task! id: ${reviewTask.id}, owner: ${reviewTask.owner}, fileName: ${reviewTask.fileName}`);
         return {
             enqueueStatus: 'skipped'
@@ -124,14 +125,14 @@ export async function enqueueTaskForComplexityAssessment(reviewTask: ReviewTask)
 
     await queue?.add(
         'complexityAssessment',
-        {task: reviewTask.toJSON()},
+        reviewTask.toJSON() as ReviewTaskData,
         jobOptions);
     await increaseTotalJobsCount(reviewTask.owner);
 }
 
 export async function enqueueTaskForCodeReview(reviewTask: ReviewTask) {
     logger.debug(`Enqueuing task for code review: ${reviewTask.fileName}`);
-    if(reviewTask.state === JobState.COMPLETED) {
+    if (reviewTask.state === JobState.COMPLETED) {
         logger.warn(`Skipping completed task! id: ${reviewTask.id}, owner: ${reviewTask.owner}, fileName: ${reviewTask.fileName}`);
         return {
             enqueueStatus: 'skipped'
@@ -140,15 +141,16 @@ export async function enqueueTaskForCodeReview(reviewTask: ReviewTask) {
     const queueName = toQueueName(reviewTask.owner, REVIEW_SUFFIX);
     const queue = getCreateQueue(queueName);
     reviewTask.state = JobState.IN_CODE_REVIEW;
+
     await queue?.add(
         'codeReview',
-        {task: reviewTask.toJSON()},
+        reviewTask.toJSON() as ReviewTaskData,
         jobOptions);
 }
 
 export async function enqueueTaskForFinalReport(reviewTask: ReviewTask) {
     logger.debug(`Enqueuing task for code report: ${reviewTask.fileName}`);
-    if(reviewTask.state === JobState.COMPLETED) {
+    if (reviewTask.state === JobState.COMPLETED) {
         logger.warn(`Skipping completed task! id: ${reviewTask.id}, owner: ${reviewTask.owner}, fileName: ${reviewTask.fileName}`);
         return {
             enqueueStatus: 'skipped'
@@ -160,7 +162,7 @@ export async function enqueueTaskForFinalReport(reviewTask: ReviewTask) {
     reviewTask.state = JobState.COMPLETED_CODE_REVIEW
     await queue?.add(
         'report',
-        {task: reviewTask.toJSON()},
+        reviewTask.toJSON() as ReviewTaskData,
         jobOptions);
 }
 
@@ -175,8 +177,8 @@ export async function obliterateAllQueues() {
 
     for (const queueName of queueNames) {
         logger.debug(`Obliterating queue ${queueName}`)
-        const queue = new Queue(queueName, { connection: redis });
-        await queue.obliterate({ force: true });
+        const queue = new Queue(queueName, {connection: redis});
+        await queue.obliterate({force: true});
         await queue.close();
     }
 

@@ -4,7 +4,8 @@ export default function toCodeReviewPrompt(
     metaData: CodeMetaData,
     sourceCode: string,
 ): string {
-  return `Here are some base facts about the code below.  
+  return `
+  Here are some base facts about the code below.  
   Language: ${metaData.Language}, Filename: ${metaData.Filename}, 
   Size in bytes: ${metaData.Size}, 
   Static analysis code complexity: ${metaData.Complexity}, 

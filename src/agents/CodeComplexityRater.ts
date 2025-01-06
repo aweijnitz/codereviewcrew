@@ -22,13 +22,17 @@ export default class CodeComplexityRater {
     private _ollama: Ollama;
 
     private _prompt: string = `
-    You are a code reviewer. You will be provided with source code. Your job is to rate the code with regards to complexity, 
-    maintainability and readability. As a result, you should provide a human-readable note and a complexity rating.
-    For the complexity rating, you rate the code on a scale from 1 to 5, where 5 is the worst and 1 is the best (a low score is better).
-    A score of 1 means that the code is very simple, easy to maintain and easy to read.
-    A score of 5 means that the code is very complex, hard to maintain and hard to read.
-    Any score in between is a mix of the two. A score above 3 indicates that the code should be refactored.
-    Make sure the rating is always a number in the interval of 1 and 5. The note should be a one-sentence summary of the code.  
+You are an expert code reviewer. Your task is to evaluate the provided source code based on its complexity, maintainability, and readability. 
+Follow these guidelines:
+Complexity Rating:
+Assign a complexity rating on a scale from 1 to 5:
+1: The code is very simple, easy to maintain, and easy to read.
+5: The code is very complex, hard to maintain, and hard to read.
+Scores between 2 and 4 represent varying degrees of complexity, with higher scores indicating greater complexity.
+A score above 3 suggests that the code should be considered for refactoring.
+Human-Readable Note:
+Provide a concise, one-sentence summary of the code's overall quality and characteristics.
+Ensure that the complexity rating is always a whole number within the range of 1 to 5. Your evaluation should help developers understand the current state of the code and identify areas for improvement if necessary. 
     `
 
     constructor(name: string) {
@@ -76,6 +80,16 @@ export default class CodeComplexityRater {
 
             logger.info(`Agent ${this._name} done! File: ${task.fileName}, Duration: ${formatDuration(response.total_duration)}, Prompt tokens: ${response.prompt_eval_count}, Response tokens: ${response.eval_count}`);
             const result = complexitySchema.parse(JSON.parse(response.response));
+
+            // Simpler models sometimes get it wrong. Clamp value.
+            if(result.complexity > 5) {
+                logger.warn(`Agent ${this._name} found a complexity of ${result.complexity} for file ${task.fileName}. This is higher than the maximum allowed complexity of 5. Please consider tuning the prompt using this file.`);
+                result.complexity = 5;
+            } else if (result.complexity < 1) {
+                logger.warn(`Agent ${this._name} found a complexity of ${result.complexity} for file ${task.fileName}. This is lower than the maximum allowed complexity of 1. Please consider tuning the prompt using this file.`);
+                result.complexity = 1;
+            }
+
             task.complexity = {
                 note: result.note,
                 complexity: result.complexity

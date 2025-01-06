@@ -57,7 +57,8 @@ export default class CodeReviewer {
                 prompt: task.code
 
             })
-            logger.info(`Agent ${this._name} done! File: ${task.fileName}. Duration: ${formatDuration(response.total_duration)}`);
+            logger.info(`Agent ${this._name} done! File: ${task.fileName}, Duration: ${formatDuration(response.total_duration)}, Prompt tokens: ${response.prompt_eval_count}, Response tokens: ${response.eval_count}`);
+
             const result = `### ${task.fileName}\n\n${response.response}`;
             task.review = {
                 review: result

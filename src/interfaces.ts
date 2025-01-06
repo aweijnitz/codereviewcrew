@@ -38,3 +38,23 @@ export enum JobState {
     COMPLETED
 }
 
+export interface ComplexityCount {
+    complexity: number;
+    count: number;
+}
+
+export interface ProblematicFile {
+    complexity: number;
+    fileName: string;
+}
+
+export interface AgentWorkerResult {
+    jobId: string,
+    error: Error | undefined,
+    result: ReviewTaskData | undefined
+}
+
+export interface AgentJobData {
+    jobId: string,
+    result: ReviewTaskData,
+}

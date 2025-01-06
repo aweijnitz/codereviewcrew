@@ -2,7 +2,7 @@ import {config} from "@dotenvx/dotenvx"; config();
 import Database from 'better-sqlite3';
 import * as process from "process";
 import getLogger from "../utils/getLogger.js";
-import {ReviewTaskData} from "../interfaces.js";
+import {ComplexityCount, ProblematicFile, ReviewTaskData} from "../interfaces.js";
 
 const logger = getLogger('schema');
 let db : Database.Database;
@@ -28,7 +28,7 @@ function toTableNames(owner: string): TableNames {
     };
 }
 
-function getDB(): Database.Database {
+export function getDB(): Database.Database {
     if(!db) {
         logger.debug(`Creating db in ${process.env.DB_FILE_NAME || 'DB_FILE_NAME_NOT_SET'}`);
         db = new Database(process.env.DB_FILE_NAME || 'DB_FILE_NAME_NOT_SET', {
@@ -143,7 +143,12 @@ export function clearAllTables() {
 }
 
 
-
+/**
+ * Internal helper to make sure table names are valid SQL.
+ * NOTE: NOT A SECURITY SANITATION.
+ *
+ * @param input
+ */
 function basicSanitize(input : string) : string {
     // Replace all occurrences of '-', '//', '\', and ' ' with '§'
     if(!input)
@@ -196,4 +201,81 @@ export function persistReviewTask(reviewTask: ReviewTaskData) {
     });
 
     transaction();
+}
+
+
+/**
+ * Count all tasks and group by assigned complexity.
+ * Returns results in descending complexity order.
+ *
+ * @param owner
+ */
+export function getTaskCountByComplexity(owner: string): ComplexityCount[] {
+    logger.debug(`getTaskCountByComplexity(${owner}`);
+    const db = getDB();
+    const { reviewTaskTableName, complexityTableName } = toTableNames(owner);
+
+    const sql = `
+        SELECT c.complexity, COUNT(rt.id) as count
+        FROM ${reviewTaskTableName} rt
+        JOIN ${complexityTableName} c ON rt.complexityId = c.id
+        GROUP BY c.complexity
+        ORDER BY c.complexity DESC
+    `;
+
+    const stmt = db.prepare(sql);
+    const results = stmt.all() as ComplexityCount[];
+
+    return results;
+}
+
+
+
+interface ReviewRow {
+    review: string;
+}
+
+/**
+ * Load *all* reviews from database (potentially large set for big repos).
+ *
+ * @param owner
+ */
+export function getAllCodeReviews(owner: string): string[] {
+    logger.debug(`getAllCodeReviews(${owner}`);
+    const db = getDB();
+    const { reviewTableName } = toTableNames(owner);
+
+    const sql = `
+        SELECT review
+        FROM ${reviewTableName}
+    `;
+
+    const stmt = db.prepare(sql);
+    const results = stmt.all()  as ReviewRow[];
+
+    return results.map(row => row.review);
+}
+
+/**
+ * Get the worst files from the review (anything above 3).
+ * Returns results in descending complexity order.
+ *
+ * @param owner
+ */
+export function getTopProblematicFilesByComplexity(owner: string): ProblematicFile[] {
+    const db = getDB();
+    const { reviewTaskTableName, complexityTableName } = toTableNames(owner);
+
+    const sql = `
+        SELECT c.complexity, rt.fileName
+        FROM ${reviewTaskTableName} rt
+        JOIN ${complexityTableName} c ON rt.complexityId = c.id
+        WHERE c.complexity > 3
+        ORDER BY c.complexity DESC
+    `;
+
+    const stmt = db.prepare(sql);
+    const results = stmt.all() as ProblematicFile[];
+
+    return results;
 }
