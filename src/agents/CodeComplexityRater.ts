@@ -1,7 +1,9 @@
 import OrchestratorAgent from "./OrchestratorAgent";
 import {Ollama} from "ollama";
 import * as console from "console";
+import getLogger from "../utils/getLogger.js";
 
+const logger = getLogger('CodeComplexityRater');
 
 export default class CodeComplexityRater {
     private OLLAMA_HOST = 'http://127.0.0.1:11434'; // TODO: Read from .env
@@ -21,6 +23,7 @@ export default class CodeComplexityRater {
     Any score in between is a mix of the two. A score below 3 indicates that the code should be refactored.
     Reply with a single number and nothing else.  
     `
+
     constructor(name: string) {
         this._name = name;
         this._ollama = new Ollama({host: this.OLLAMA_HOST})
@@ -40,20 +43,21 @@ export default class CodeComplexityRater {
     }
 
     public async run(): Promise<string> {
-        if(this._code === '') { return 'No code to analyze'; }
-        if(this._fileName === '') { return 'No file name provided'; }
+        logger.info(`Agent ${this._name} running. Analyzing file ${this._fileName}`);
+        if (!this._code || this._code.trim() === '')
+            return 'No code to analyze (empty string)';
+        if (!this._fileName || this._fileName.trim() === '')
+            return 'No file name provided';
+
         const response = await this._ollama.generate({
             model: this.MODEL_NAME,
             options: {
-                temperature: 0.2
+                temperature: 0.3
             },
             system: this._prompt,
             prompt: this._code,
-
-
         })
-        console.log(`Agent ${this._name} running. Analyzing file ${this._fileName}`);
-        console.log(`Agent ${this._name} done! File: ${this._fileName}. Duration: ${response.total_duration}`);
+        logger.info(`Agent ${this._name} done! File: ${this._fileName}. Duration: ${response.total_duration}`);
         return response.response;
     }
 }

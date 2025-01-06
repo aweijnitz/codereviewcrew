@@ -3,6 +3,8 @@ Basic Agentic Code Review Service
 
 ## Commands
 
+> npm run dev
+>
 > npm run start
 > 
 > npm run test
@@ -13,7 +15,7 @@ Basic Agentic Code Review Service
 ## Requirements
 
 - Node.js (project developed on v21)
-- Docker
+- Docker (used to run scc static code analyzer)
 - Ollama (local or accessible via URL endpoint)
 
 ## LICENSE

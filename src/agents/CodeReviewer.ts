@@ -2,7 +2,9 @@ import OrchestratorAgent from "./OrchestratorAgent";
 import {Ollama} from "ollama";
 import * as console from "console";
 import formatDuration from "../utils/formatDuration.js";
+import getLogger from "../utils/getLogger.js";
 
+const logger = getLogger('CodeReviewer');
 
 export default class CodeReviewer {
     private OLLAMA_HOST = 'http://127.0.0.1:11434'; // TODO: Read from .env
@@ -38,7 +40,7 @@ export default class CodeReviewer {
     }
 
     public async run(): Promise<string> {
-        console.log(`Agent ${this._name} running. Analyzing file ${this._fileName}`);
+        logger.info(`Agent ${this._name} running. Analyzing file ${this._fileName}`);
 
         const response = await this._ollama.generate({
             model: this.MODEL_NAME,
@@ -49,7 +51,7 @@ export default class CodeReviewer {
             prompt: this._code
 
         })
-        console.log(`Agent ${this._name} done! File: ${this._fileName}. Duration: ${formatDuration(response.total_duration)}`);
+       logger.info(`Agent ${this._name} done! File: ${this._fileName}. Duration: ${formatDuration(response.total_duration)}`);
         return `# ${this._fileName}\n\n${response.response}`;
     }
 }

@@ -1,6 +1,8 @@
 import { exec } from "child_process";
 import { promisify } from "util";
-import * as console from "console";
+import getLogger from "../utils/getLogger.js";
+
+const logger = getLogger('staticCodeAnalysis');
 
 const execAsync = promisify(exec);
 
@@ -34,7 +36,7 @@ export async function analyzeFolder(folderPath: string): Promise<any> {
         }
         return stripPwdPathPrefix(JSON.parse(stdout));
     } catch (error) {
-        console.error("analyzeFolder: An error occurred:", error);
+        logger.error("analyzeFolder: An error occurred:", error);
         throw error;
     }
 }

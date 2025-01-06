@@ -1,3 +1,7 @@
+import getLogger from "../utils/getLogger.js";
+
+const logger = getLogger('OrchestratorAgent');
+
 export default class OrchestratorAgent {
     private _name: string;
 
@@ -10,7 +14,7 @@ export default class OrchestratorAgent {
     }
     public getName(): string { return this._name }
     public async run(): Promise<string> {
-        console.log(`Agent ${this._name} is running...`);
+        logger.info(`Agent ${this._name} is running...`);
         return 'DONE';
     }
 }

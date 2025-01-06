@@ -1,17 +1,17 @@
 import * as fs from "fs";
+import * as path from "path";
 
 import CodeReviewer from "./agents/CodeReviewer.js";
-import * as console from "console";
-import * as path from "path";
-import CodeComplexityRater from "./agents/CodeComplexityRater.js";
 import {analyzeFolder} from "./tools/staticCodeAnalysis.js";
 import promiseWithConcurrencyLimit from "./utils/promiseWithConcurrencyLimit.js";
+import getLogger from "./utils/getLogger.js";
 
 const MAX_CONCURRENCY = 3;
+const logger = getLogger('index');
+
 const rootPath = './src'
 const folderPathAbsolute = path.normalize(path.resolve(rootPath));
-console.log('Scanning folder: ' + folderPathAbsolute);
-
+logger.info('Scanning folder: ' + folderPathAbsolute);
 try {
     const analysisResult = await analyzeFolder(folderPathAbsolute);
     const files = analysisResult.pop().Files;
@@ -24,9 +24,9 @@ try {
         reviews.push(codeReviewer.run());
     }
     const result = await promiseWithConcurrencyLimit(reviews, MAX_CONCURRENCY);
-    console.log(result);
+    logger.debug(result)
 } catch (error) {
-    console.error("Failed to analyze folder:", error);
+    logger.error("Failed to analyze folder:", error);
 }
 
 /*
