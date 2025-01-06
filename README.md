@@ -137,4 +137,3 @@ Install [glow](https://github.com/charmbracelet/glow) and use it to read the rep
 ## LICENSE
 
 GPL v3. See LICENSE file for more information.
-```
