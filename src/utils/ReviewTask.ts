@@ -1,10 +1,10 @@
 import {CodeReviewResult, ComplexityResult, JobState} from "../interfaces";
 
-export class FileJob {
+export class ReviewTask {
     fileName: string;
     complexity: ComplexityResult = {fileName: '', complexity: 0, note: ''};
     review: CodeReviewResult = {fileName: '', review: ''};
-    state: JobState;
+    state: JobState = JobState.NOT_INITIALIZED
 
     constructor(fileName: string, state: JobState) {
         this.fileName = fileName;

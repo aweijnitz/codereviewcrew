@@ -7,7 +7,7 @@ import CodeReviewer from "./CodeReviewer.js";
 import toCodeComplexityPrompt from "../utils/toCodeComplexityPrompt.js";
 import {JobState} from "../interfaces.js";
 import toCodeReviewPrompt from "../utils/toCodeReviewPrompt.js";
-import {FileJob} from "../utils/FileJob.js";
+import {ReviewTask} from "../utils/ReviewTask";
 
 
 const logger = getLogger('OrchestratorAgent');
@@ -23,9 +23,10 @@ interface LanguageBin {
  *
  * The OrchestratorAgent is responsible for:
  * - Scanning a folder for files and run a static code analysis on them
- * - For each file, use CodeComplexityRater agents to evaluate the complexity of the code
- * - For files that are deemed complex, use CodeReviewer agents to review the code and suggest improvements
- * - Collect the results of the code reviews and complexity assessments to produce a final report
+ *  - For each file, a ReviewTask is created and enqueued for complexity assessment
+ * - For each ReviewTask, use CodeComplexityRater agents to evaluate the complexity of the code
+ * - For ReviewTasks that are deemed complex, use CodeReviewer agents to review the code and suggest improvements
+ * - Collect the results of the code reviews and complexity assessments to produce a final report (enqueued in the finalReport array. Job starts when all other queued jobs are completed)
  */
 export default class OrchestratorAgent {
     private _name: string;
@@ -52,7 +53,7 @@ export default class OrchestratorAgent {
      */
     public async run(): Promise<string> {
         logger.info(`Agent ${this._name} is running...`);
-        const state: Array<FileJob> = [];
+        const state: Array<ReviewTask> = [];
         try {
             logger.info("Scanning folder: " + this._folderPathAbsolute);
             const analysisResult = await analyzeFolder(this._folderPathAbsolute); //scc static code analysis
@@ -69,7 +70,7 @@ export default class OrchestratorAgent {
                     const complexityRater = new CodeComplexityRater('ComplexityRater-' + agentNr++);
                     complexityRater.setCode(file.Location, toCodeComplexityPrompt(file, code));
 
-                    const fileJob = new FileJob(file.Location, JobState.WAITING_TO_RUN);
+                    const fileJob = new ReviewTask(file.Location, JobState.WAITING_TO_RUN);
                     state.push(fileJob);
 
                     reviewJobs.push((async () => {

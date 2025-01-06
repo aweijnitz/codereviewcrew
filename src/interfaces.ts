@@ -20,6 +20,7 @@ export interface CodeReviewResult {
 }
 
 export enum JobState {
+    NOT_INITIALIZED,
     WAITING_TO_RUN,
     IN_COMPLEXITY_ASSESSMENT,
     COMPLETED_COMPLEXITY_ASSESSMENT,
