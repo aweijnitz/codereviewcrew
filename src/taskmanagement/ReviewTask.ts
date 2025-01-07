@@ -1,7 +1,7 @@
 import { EventEmitter } from 'events';
 import { ReviewTaskData, CodeReviewResult, ComplexityResult, JobState } from '../interfaces.js';
 
-export default class ReviewTask extends EventEmitter {
+export default class ReviewTask {
     private _id: string;
     private _owner: string; // The name of the agent that owns this task
     private _fileName: string;
@@ -11,7 +11,6 @@ export default class ReviewTask extends EventEmitter {
     private _review: CodeReviewResult = { review: '' };
 
     constructor(owner: string, fileName: string = '', code: string = '', state: JobState = JobState.NOT_INITIALIZED) {
-        super();
         this._owner = owner;
         this._fileName = fileName;
         this._code = code;
@@ -41,7 +40,6 @@ export default class ReviewTask extends EventEmitter {
 
     set state(value: JobState) {
         this._state = value;
-        this.emit('stateChange', value, this);
     }
 
     get complexity(): ComplexityResult {
@@ -53,7 +51,6 @@ export default class ReviewTask extends EventEmitter {
             throw new Error('Complexity result cannot be null');
         }
         this._complexity = value;
-        this.emit('complexityAssessmentComplete', value, this);
     }
 
     get review(): CodeReviewResult {
@@ -65,7 +62,6 @@ export default class ReviewTask extends EventEmitter {
             throw new Error('Review result cannot be null');
         }
         this._review = value;
-        this.emit('codeReviewComplete', value, this);
     }
 
     public toString(): string {
