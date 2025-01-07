@@ -5,6 +5,9 @@
 This is a basic code review application that uses LLM agents to review code.  It has a command line interface that takes a folder to scan and a report file name. 
 It uses an agentic collaboration approach, where the agents use a combination of static code analysis and AI to generate a report. The report is generated as a markdown file.
 
+While being a small codebase, it still sketches out some enterprise requirements, such as _tenancy_ (the "owner" concept in the code), _concurrency and rate limiting_ using message queues,
+_data isolation_ (each run gets it's own dedicated queues and db tables) and basic _data retention policy_ (all ephemeral data is flushed on report completion and at process exit).
+
 ### Token Consumption Warning!
 
 This application was developed using a local Ollama instance.
@@ -12,9 +15,9 @@ For paid LLM services, it might consume a non-trivial amount of tokens and __inc
 
 ## Requirements
 
-- Node.js (project developed on v21)
-- Docker
-- Ollama (local or accessible via URL endpoint)
+- [Node.js](https://nodejs.org/en) (project developed on v21)
+- [Docker](https://www.docker.com/)
+- [Ollama](https://ollama.com/) (local or accessible via URL endpoint)
 
 Developed on MacOSX (Intel Mac). Should work on *nix too without modifications.
 
@@ -71,9 +74,6 @@ The (very) long Ollama response times also calls for some robustness using messa
 This is a useful testbed for trying out agent collaboration and experimenting with prompts, different models and model settings (temperature, top_k, repeat_penalty, ...).
 It does so without bringing the overhead of learning an agent framework or potentially a new programming language (Python). The codebase is also very small (currently less than 20 source files), so it is easy to refactor and understand.
 The domain (code review) is familiar to any developer and therefore it is easy to evaluate the results as well.
-
-While being a small codebase, it sketches out some enterprise requirements, such as _tenancy_ (the "owner" concept in the code), _concurrency and rate limiting_ using message queues, 
-_data isolation_ (each run gets it's own dedicated queues and db tables) and basic _data retention policy_ (all ephemeral data is flushed on report completion and at process exit).  
 
 **Ideas:**
 
@@ -161,9 +161,11 @@ Install [glow](https://github.com/charmbracelet/glow) and use it to read the rep
 ## References
 
 - [Ollama API doc](https://github.com/ollama/ollama/blob/main/docs/api.md)
+- [Ollama Models](https://ollama.com/search)
 - [SCC](https://github.com/boyter/scc?tab=readme-ov-file#usage)
 - [IORedis](https://github.com/redis/ioredis)
 - [BullMQ](https://docs.bullmq.io/readme-1)
+- Inspiration [LlamaIndex Blog](https://www.llamaindex.ai/blog)
 
 ## LICENSE
 
