@@ -8,6 +8,8 @@ It uses an agentic collaboration approach, where the agents use a combination of
 While being a small codebase, it still sketches out some enterprise requirements, such as _tenancy_ (the "owner" concept in the code), _concurrency and rate limiting_ using message queues,
 _data isolation_ (each run gets it's own dedicated queues and db tables) and basic _data retention policy_ (all ephemeral data is flushed on report completion and at process exit).
 
+[Example report](docs/example_report.md)
+
 ### Token Consumption Warning!
 
 This application was developed using a local Ollama instance.
@@ -58,7 +60,7 @@ The models are set in the `.env` file. Best results are had with a mix of models
 ### Application Architecture
 
 The application architecture is pretty straight forward. Each run creates a dedicated queue and db tables for the batch and sets up workers with concurrency and rate limiting to not overwhelm the system.
-The queue workers pick up jobs from the queues and invokes the corresponding agents. All completed reviews are stored in the database and the reporter agent summarizes them from the database contents.
+The queue workers pick up jobs from the queues and invoke the corresponding agents. All completed reviews are stored in the database and the reporter agent summarizes them from the database contents.
 
 <img src="./docs/code-review-crew-architecture.drawio.svg">
 
