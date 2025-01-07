@@ -35,7 +35,8 @@ Note: `./scripts/startServices.sh` is a prerequisite. Expect runs to take severa
 
 ## Architecture and approach
 
-TODO
+
+![Code Review CrewApproach](./docs/code-review-crew.drawio.svg)<img src="./docs/code-review-crew.drawio.svg">
 
 ## Learnings and ideas for future work
 
