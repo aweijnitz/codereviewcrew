@@ -35,8 +35,32 @@ Note: `./scripts/startServices.sh` is a prerequisite. Expect runs to take severa
 
 ## Architecture and approach
 
+This is a multi-agent system coordinated by an orchestrator agent. The orchestrator agent is responsible for creating tasks and assigning them to agents that specialize on one specific thing (complexity analysis for example).
+Agents are responsible for completing tasks and reporting back to the orchestrator.  The orchestrator is also responsible for aggregating the results and tasking a summarizing agent with creating a report for the code base.
 
-![Code Review CrewApproach](./docs/code-review-crew.drawio.svg)<img src="./docs/code-review-crew.drawio.svg">
+Static code analysis is used to enrich the context for the complexity analysis.
+
+### Models used
+
+The models are set in the `.env` file. Best results are had with a mix of models, trained on code and on summarizing.
+
+### Overall agentic flow
+
+<img src="./docs/code-review-crew.drawio.svg">
+
+### Application Architecture
+
+The application architecture is pretty straight forward. Each run creates a dedicated queue and db tables for the batch and sets up workers with concurrency and rate limiting to not overwhelm the system.
+The queue workers pick up jobs from the queues and invokes the corresponding agents. All completed reviews are stored in the database and the reporter agent summarizes them from the database contents.
+
+<img src="./docs/code-review-crew-architecture.drawio.svg">
+
+### Application Infrastructure
+
+The "infrastructure" of the application is on purpose a little over engineered, as I wanted to explore and sketch out some enterprise requirement aspects.
+The (very) long Ollama response times also calls for some robustness using message queues, as calls regularly timeout.
+
+<img src="./docs/code-review-crew-infra.webp">
 
 ## Learnings and ideas for future work
 
