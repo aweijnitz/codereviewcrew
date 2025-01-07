@@ -21,8 +21,11 @@ Developed on MacOSX (Intel Mac). Should work on *nix too without modifications.
 ## Installation and services start
 
 > mv .env_example .env            # Edit and update to match your local
+> 
 > ./scripts/setup.sh                    # Check for Docker, Ollama and pre-pull docker images and ollama models
+> 
 > npm install                               # install dependencies
+> 
 > ./scripts/startServices.sh       # start docker service(s) as background processes
 
 ## Usage
@@ -31,6 +34,7 @@ The frontend is a command line interface. Pass in the folder to scan and a repor
 Note: `./scripts/startServices.sh` is a prerequisite. Expect runs to take several minutes, or even hours for large code bases.
 
 > ./reviewCodeBase.sh < folder to analyze> [report_file.md]
+> 
 > ./reviewCodeBase.sh ./src/db /tmp/report.md   # Example
 
 ## Architecture and approach
@@ -98,6 +102,7 @@ To develop individual agents and tune prompts, work in `src/devhelpers/evalAndTu
 ### Commands
 
 > $ ./scripts/startServices.sh    # Start background services (redis and BullMQ monitor)
+> 
 > $ npm run dev                       # start in dev mode (colorful debug level logging with hard-coded test folder './src/db')
 >
 > $ npm run start                     # alias for './reviewCodeBase.sh ./src/db'
@@ -107,6 +112,7 @@ To develop individual agents and tune prompts, work in `src/devhelpers/evalAndTu
 > $ npm run clean && npm run build    # clean and build the project
 > 
 > $ ./scripts/stopServices.sh                 # stop docker services
+> 
 > $ ./scripts/stopServices.sh  -p           # stop docker services and delete containers and data volumes
 
 
