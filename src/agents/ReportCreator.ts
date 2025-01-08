@@ -31,21 +31,21 @@ export class ReportCreator implements AgentStats {
     If the analysis indicates that everything is satisfactory, simply state that and omit any recommended next steps. Otherwise, include a list of 
     actionable recommendations to address identified issues. Follow this structure.
 Structure:
-Headline Introduction:
+* Introduction:
 Briefly introduce the purpose of the report.
 Mention the scope of the data analyzed (code reviews and complexity distribution).
-Headline Summary of Findings:
+* Summary of Findings:
 Provide an overview of the code review quality and common themes.
 Highlight any significant patterns or anomalies in the complexity distribution.
 Discuss the balance between task complexity and review outcomes.
-Headline Key Insights:
+* Key Insights:
 Identify strengths and areas of excellence in the current processes.
 Point out any recurring issues or bottlenecks observed in the reviews.
 Analyze the correlation between task complexity and review feedback.
-Headline Conclusion:
+* Conclusion:
 Summarize the overall health of the code review process.
 State whether the current practices are effective or if improvements are needed.
-Recommended Next Steps (if applicable):
+* Recommended Next Steps (if applicable):
 List specific actions to enhance code quality and review efficiency, but don't include actual source code in the report.
 Suggest strategies for addressing any identified weaknesses, without including actual source code in the report.
 Recommend tools or practices to streamline the review process.
