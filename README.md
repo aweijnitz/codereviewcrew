@@ -60,7 +60,7 @@ The models are set in the `.env` file. Best results are had with a mix of models
 ### Application Architecture
 
 The application architecture is pretty straight forward. Each run creates a dedicated queue and db tables for the batch and sets up workers with concurrency and rate limiting to not overwhelm the system.
-The queue workers pick up jobs from the queues and invoke the corresponding agents. All completed reviews are stored in the database and the reporter agent summarizes them from the database contents.
+The queue workers pick up jobs from the queues and invoke the corresponding agents. All completed reviews are stored in the database and the reporter agent summarizes them from the database contents. A good place to start reading the code is in the [src/agents/OrchestratorAgent.ts](src/agents/OrchestratorAgent.ts)
 
 <img src="./docs/code-review-crew-architecture.drawio.svg">
 
