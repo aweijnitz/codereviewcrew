@@ -69,7 +69,7 @@ The queue workers pick up jobs from the queues and invoke the corresponding agen
 The "infrastructure" of the application is on purpose a little over engineered, as I wanted to explore and sketch out some enterprise requirement aspects.
 The (very) long Ollama response times also calls for some robustness using message queues, as calls regularly timeout.
 
-<img src="./docs/code-review-crew-infra.webp">
+<img src="./docs/code-review-crew-infra.drawio.png">
 
 ## Learnings and ideas for future work
 
