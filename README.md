@@ -169,6 +169,20 @@ Install [glow](https://github.com/charmbracelet/glow) and use it to read the rep
 - [BullMQ](https://docs.bullmq.io/readme-1)
 - Inspiration [LlamaIndex Blog](https://www.llamaindex.ai/blog)
 
+## Screenshots
+
+Being a CLI tool, there is not much to show. Anyway, here are a few shots.
+
+**An example run.**
+<img src="docs/images/example-run.png">
+
+**An typical report.**
+<img src="docs/images/example_report-shot.png">
+
+**Monitoring dashboard provided by Bull Master.**
+<img src="docs/images/BullMQ-Monitor.png">
+
+
 ## LICENSE
 
 GPL v3. See LICENSE file for more information.
